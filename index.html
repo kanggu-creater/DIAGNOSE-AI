@@ -384,7 +384,7 @@ function LibraryTab({quizzes,uid,onChange}){
   const [qr,setQr]=useState(null),[busy,setBusy]=useState("");
   const del=async id=>{if(!confirm("삭제하시겠습니까? (관련 제출도 삭제)"))return;await DB.delQuiz(uid,id);onChange();};
   const copy=async a=>{
-    const cls=prompt("복사본을 어느 반에 쓸까요? (예: 3)\n비워두면 그대로 복사됩니다.", a.cls||"");
+    const cls=prompt("복사본을 어느 반에 쓸까요? (예: 2학년 1반)\n비워두면 그대로 복사됩니다.", a.cls||"");
     if(cls===null)return;
     setBusy(a.id);
     try{
@@ -393,7 +393,7 @@ function LibraryTab({quizzes,uid,onChange}){
       dup.id=Date.now().toString();dup.createdAt=now();dup.cls=cls.trim()||a.cls||"";
       await DB.saveQuiz(uid,dup,key);
       onChange();
-      alert("복사했습니다.\n새 입장 코드: #"+shortCode(dup.id)+(dup.cls?"  ("+dup.cls+"반)":""));
+      alert("복사했습니다.\n새 입장 코드: #"+shortCode(dup.id)+(dup.cls?"  ("+dup.cls+")":""));
     }catch(e){alert("복사 실패: "+e.message);}
     setBusy("");
   };
@@ -406,8 +406,8 @@ function LibraryTab({quizzes,uid,onChange}){
         <div key={a.id} style={{...card,padding:"16px 18px",marginBottom:12}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}>
             <div style={{flex:1,minWidth:180}}>
-              <div style={{fontWeight:800,fontSize:15,color:INK,marginBottom:3}}>{a.title}</div>
-              <div style={{fontSize:12,color:MUT}}>{a.topic&&`🧪 ${a.topic} · `}{a.grade&&`${a.grade} `}{a.cls&&`${a.cls}반 · `}문항 {a.questions?.length||0}개</div>
+              <div style={{fontWeight:800,fontSize:15,color:INK,marginBottom:3}}>{a.title}{a.cls?<span style={{color:GR,fontWeight:700}}> ({a.cls})</span>:null}</div>
+              <div style={{fontSize:12,color:MUT}}>{a.topic&&`🧪 ${a.topic} · `}{a.grade&&`${a.grade} · `}문항 {a.questions?.length||0}개</div>
             </div>
             <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
               <span style={{fontSize:18,fontWeight:900,color:GR,letterSpacing:2,background:SAGE,padding:"6px 12px",borderRadius:8}}>#{shortCode(a.id)}</span>
