@@ -1,1057 +1,658 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
-<head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
-  <title>DIAGNOSE AI</title>
-  <meta name="theme-color" content="#1D4ED8"/>
-  <meta name="mobile-web-app-capable" content="yes"/>
-  <meta name="apple-mobile-web-app-capable" content="yes"/>
-  <meta name="apple-mobile-web-app-title" content="DIAGNOSE AI"/>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <!-- Firebase SDK (Auth 포함) -->
-  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
-  <style>*{box-sizing:border-box;margin:0;padding:0;}body{font-family:'Segoe UI',system-ui,sans-serif;}</style>
-</head>
-<body>
-<div id="root"></div>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 오개념 진단평가 (이단계형)</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --paper:#F8F9F6;--paper-2:#FFFFFF;--grid:#E4EAE6;
+    --ink:#17222B;--ink-soft:#516069;--ink-faint:#8A97A0;--line:#D8E0DC;
+    --teal:#0E7C86;--teal-deep:#0A5A62;--teal-wash:#E7F2F1;
+    --amber:#E0912A;--amber-wash:#FBF1DF;
+    --purple:#6B4E9E;--purple-wash:#F0EBF8;
+    --ok:#127C55;--ok-wash:#E5F2EB;--danger:#C0483B;--danger-wash:#FBECEA;
+    --radius:14px;
+    --mono:ui-monospace,"SF Mono","SFMono-Regular",Menlo,Consolas,monospace;
+    --sans:"Pretendard",-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic","맑은 고딕",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box} html,body{margin:0}
+  body{font-family:var(--sans);color:var(--ink);background-color:var(--paper);
+    background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+    background-size:26px 26px;line-height:1.55;-webkit-font-smoothing:antialiased;padding:0 0 80px;}
+  .wrap{max-width:900px;margin:0 auto;padding:0 20px}
+  header{padding:30px 0 14px;display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap}
+  .kicker{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--purple);font-weight:600;display:flex;align-items:center;gap:9px}
+  .kicker .dot{width:8px;height:8px;border-radius:50%;background:var(--amber);display:inline-block}
+  h1{font-size:28px;letter-spacing:-.02em;margin:8px 0 4px;font-weight:800}
+  .sub{color:var(--ink-soft);font-size:14.5px;margin:0}
+  .head-actions{display:flex;gap:8px;flex-wrap:wrap}
+  .chip{font-family:var(--sans);font-size:12.5px;font-weight:600;color:var(--ink-soft);background:var(--paper-2);border:1.5px solid var(--line);border-radius:20px;padding:7px 13px;cursor:pointer;white-space:nowrap}
+  .chip:hover{border-color:var(--teal);color:var(--teal)}
+
+  .tabs{display:flex;gap:4px;margin:22px 0 20px;border-bottom:1.5px solid var(--line)}
+  .tab{appearance:none;border:0;background:none;cursor:pointer;font-family:var(--sans);font-size:15px;font-weight:600;color:var(--ink-faint);padding:11px 16px;position:relative;transition:color .15s}
+  .tab:hover{color:var(--ink-soft)} .tab.active{color:var(--ink)}
+  .tab.active::after{content:"";position:absolute;left:12px;right:12px;bottom:-1.5px;height:2.5px;background:var(--teal);border-radius:2px}
+
+  .card{background:var(--paper-2);border:1.5px solid var(--line);border-radius:var(--radius);padding:22px;box-shadow:0 1px 0 rgba(23,34,43,.02)}
+  .card + .card{margin-top:16px}
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .field{display:flex;flex-direction:column;gap:6px} .field.full{grid-column:1/-1}
+  label{font-size:13px;font-weight:600;color:var(--ink-soft)}
+  label .hint{font-weight:400;color:var(--ink-faint);font-size:12px;margin-left:6px}
+  input,select,textarea{font-family:var(--sans);font-size:14.5px;color:var(--ink);background:var(--paper);border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;width:100%;transition:border-color .15s,box-shadow .15s}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 3px var(--teal-wash)}
+  textarea{resize:vertical;min-height:70px}
+  select{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1 1l5 5 5-5' stroke='%23516069' stroke-width='1.6' fill='none' stroke-linecap='round'/></svg>");background-repeat:no-repeat;background-position:right 12px center;padding-right:34px}
+
+  .btn{appearance:none;border:1.5px solid transparent;cursor:pointer;font-family:var(--sans);font-weight:600;font-size:14px;border-radius:10px;padding:11px 18px;transition:transform .06s,background .15s,border-color .15s,color .15s;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+  .btn:active{transform:translateY(1px)}
+  .btn-primary{background:var(--teal);color:#fff} .btn-primary:hover{background:var(--teal-deep)} .btn-primary:disabled{background:#A9C3C3;cursor:not-allowed}
+  .btn-ghost{background:var(--paper);border-color:var(--line);color:var(--ink-soft)} .btn-ghost:hover{border-color:var(--ink-faint);color:var(--ink)}
+  .btn-lg{width:100%;padding:14px;font-size:15.5px}
+
+  .generate-row{margin-top:20px}
+  .qbtns{display:flex;gap:6px;flex-shrink:0}
+  .iconbtn{appearance:none;border:1.5px solid var(--line);background:var(--paper);cursor:pointer;font-family:var(--sans);font-size:12.5px;font-weight:600;color:var(--ink-soft);border-radius:8px;padding:6px 10px;transition:all .13s;white-space:nowrap}
+  .iconbtn:hover{border-color:var(--teal);color:var(--teal);background:var(--teal-wash)}
+  .iconbtn.del:hover{border-color:var(--danger);color:var(--danger);background:var(--danger-wash)}
+  .iconbtn:disabled{opacity:.5;cursor:not-allowed}
+
+  .mc-list{display:flex;flex-direction:column;gap:8px}
+  .mc-item{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--purple-wash)}
+  .mc-id{font-family:var(--mono);font-size:11px;font-weight:700;color:#fff;background:var(--purple);border-radius:6px;padding:3px 7px;flex-shrink:0}
+  .mc-body{flex:1}.mc-name{font-weight:700;font-size:14px;color:var(--ink)}.mc-desc{font-size:13px;color:var(--ink-soft);margin-top:2px}
+  .mc-btns{display:flex;gap:5px;flex-shrink:0}
+
+  .qlist{margin-top:16px;display:flex;flex-direction:column;gap:14px}
+  .q{background:var(--paper-2);border:1.5px solid var(--line);border-radius:var(--radius);padding:18px 18px 16px;position:relative}
+  .q-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px}
+  .q-num{font-family:var(--mono);font-size:13px;font-weight:700;color:#fff;background:var(--teal);width:28px;height:28px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+  .q-titlewrap{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .badge{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.03em;padding:3px 8px;border-radius:20px;background:var(--amber-wash);color:#9A6410}
+  .badge.concept{background:var(--teal-wash);color:var(--teal-deep)}
+  .badge.tier{background:var(--purple-wash);color:var(--purple)}
+  .tier-label{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.05em;color:var(--purple);margin:12px 0 4px;text-transform:uppercase}
+  .tier-label.t1{color:var(--teal)}
+  .q-question{font-weight:500;margin-bottom:6px;white-space:pre-wrap}
+  .opts{list-style:none;padding:0;margin:6px 0 0;display:flex;flex-direction:column;gap:5px}
+  .opts li{font-size:14.5px;color:var(--ink-soft);padding:2px 0;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .otag{font-family:var(--mono);font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:12px;background:var(--purple-wash);color:var(--purple);white-space:nowrap}
+  .otag.correct{background:var(--ok-wash);color:var(--ok)}
+  .answer-box{margin-top:12px;padding:10px 12px;border-radius:10px;background:var(--teal-wash);border-left:3px solid var(--teal);font-size:13.5px;color:var(--teal-deep)}
+  .answer-box .exp{color:var(--ink-soft);margin-top:4px;display:block}
+  .edit-grid{display:flex;flex-direction:column;gap:10px;margin-top:4px}.edit-grid label{font-size:12px}.edit-actions{display:flex;gap:8px;margin-top:4px}
+
+  .empty{text-align:center;color:var(--ink-faint);padding:44px 20px;border:1.6px dashed var(--line);border-radius:var(--radius);margin-top:22px;background:rgba(255,255,255,.5)}
+  .empty .big{font-size:15px;color:var(--ink-soft);font-weight:600;margin-bottom:4px}
+  .spinner{width:16px;height:16px;border:2.5px solid rgba(255,255,255,.45);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+  .spinner.dark{border-color:var(--teal-wash);border-top-color:var(--teal)}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .loading-note{display:flex;align-items:center;gap:10px;justify-content:center;color:var(--ink-soft);font-size:14px;padding:34px;text-align:center}
+  .errbar{background:var(--danger-wash);border:1.5px solid #EDC7C1;color:var(--danger);border-radius:10px;padding:12px 14px;font-size:13.5px;margin-top:16px}
+  .warn{background:var(--amber-wash);border:1.5px solid #EAD3A6;color:#8A5B10;border-radius:10px;padding:10px 12px;font-size:13px;margin-top:12px}
+  .infobar{background:var(--teal-wash);border:1.5px solid #BEDDD9;color:var(--teal-deep);border-radius:10px;padding:12px 14px;font-size:13.5px}
+
+  .qr-actions{display:flex;gap:10px;margin-top:22px;flex-wrap:wrap}.qr-actions .btn{flex:1;min-width:150px}
+  .qr-inner{display:flex;gap:22px;align-items:flex-start;flex-wrap:wrap;margin-top:8px}
+  .qr-canvas-wrap{background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:14px;line-height:0}
+  .qr-side{flex:1;min-width:220px}
+  .codepill{font-family:var(--mono);font-weight:700;font-size:20px;letter-spacing:.15em;color:var(--teal-deep);background:var(--teal-wash);border-radius:10px;padding:8px 14px;display:inline-block}
+
+  .stats{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+  .stat{flex:1;min-width:120px;background:var(--paper-2);border:1.5px solid var(--line);border-radius:12px;padding:14px 16px}
+  .stat .n{font-family:var(--mono);font-size:24px;font-weight:800;color:var(--teal);line-height:1}
+  .stat .l{font-size:12.5px;color:var(--ink-soft);margin-top:5px}
+  .tablewrap{overflow-x:auto;border:1.5px solid var(--line);border-radius:12px}
+  table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:520px}
+  th,td{padding:9px 11px;text-align:center;border-bottom:1px solid var(--line);white-space:nowrap}
+  th{background:var(--paper);font-weight:700;color:var(--ink-soft);position:sticky;top:0}
+  td.sid{font-family:var(--mono);font-weight:700;color:var(--ink);text-align:left}
+  td.mcname{text-align:left;font-weight:600;color:var(--ink)}
+  .mark-o{color:var(--ok);font-weight:800}.mark-x{color:var(--danger);font-weight:800}.mark-r{color:var(--amber);font-weight:700}.mark-n{color:var(--ink-faint)}
+  tr:last-child td{border-bottom:0}.qrate{font-size:12px;color:var(--ink-faint)}
+  .bar{height:8px;border-radius:5px;background:var(--purple);display:inline-block;vertical-align:middle}
+  .barwrap{background:var(--line);border-radius:5px;width:120px;display:inline-block;vertical-align:middle;overflow:hidden}
+  .h3row{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:22px 0 10px}.h3row h2{margin:0;font-size:18px}
+
+  .s-q{background:var(--paper-2);border:1.5px solid var(--line);border-radius:var(--radius);padding:18px;margin-bottom:14px}
+  .s-qhead{display:flex;gap:10px;align-items:center;margin-bottom:10px}
+  .s-opt{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;margin-top:8px;cursor:pointer;transition:all .12s;font-size:14.5px}
+  .s-opt:hover{border-color:var(--teal)} .s-opt input{width:auto;margin:0} .s-opt.sel{border-color:var(--teal);background:var(--teal-wash)}
+  .done-card{text-align:center;padding:40px 22px}
+  .done-card .check{width:56px;height:56px;border-radius:50%;background:var(--ok-wash);color:var(--ok);display:inline-flex;align-items:center;justify-content:center;font-size:28px;margin-bottom:12px}
+
+  .modal-bg{position:fixed;inset:0;background:rgba(23,34,43,.4);display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
+  .modal-bg.show{display:flex}
+  .modal{background:var(--paper-2);border-radius:16px;max-width:460px;width:100%;padding:24px;box-shadow:0 20px 50px rgba(0,0,0,.25)}
+  .modal h3{margin:0 0 4px;font-size:18px}.modal .msub{color:var(--ink-soft);font-size:13px;margin:0 0 16px}.modal .field{margin-bottom:14px}
+  .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:8px}
+
+  .hidden{display:none!important}
+  @media (max-width:640px){.form-grid{grid-template-columns:1fr}h1{font-size:23px}.q-head{flex-direction:column}.qbtns{align-self:flex-end}}
+  @media print{body{background:#fff}.tabs,.qbtns,.qr-actions,.chip,.head-actions,.no-print{display:none!important}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <div class="kicker"><span class="dot"></span><span id="kicker">중학교 과학 · 이단계 오개념 진단</span></div>
+      <h1 id="title">AI 오개념 진단평가</h1>
+      <p class="sub" id="subtitle">이단계형(현상 + 이유) 문항으로 학생의 오개념 보유 여부를 진단합니다.</p>
+    </div>
+    <div class="head-actions" id="headActions">
+      <button class="chip" id="settingsChip" onclick="openSettings()">⚙ 설정</button>
+      <button class="chip" id="roleChip" onclick="toggleRole()">학생 화면 미리보기 →</button>
+    </div>
+  </header>
+
+  <div id="teacherApp">
+    <div class="tabs">
+      <button class="tab active" data-tab="make">문제 출제</button>
+      <button class="tab" data-tab="result">결과 확인</button>
+    </div>
+
+    <section id="tab-make">
+      <div id="cfgBanner"></div>
+      <div class="card">
+        <div class="form-grid">
+          <div class="field"><label>교육과정</label>
+            <select id="curriculum"><option>2022 개정 교육과정</option><option>2015 개정 교육과정</option></select></div>
+          <div class="field"><label>학년</label>
+            <select id="grade"><option>중학교 1학년</option><option selected>중학교 2학년</option><option>중학교 3학년</option></select></div>
+          <div class="field full"><label>학습 주제 / 단원 <span class="hint">예: 마찰전기와 정전기 유도</span></label>
+            <input id="unit" type="text" placeholder="오개념을 진단할 주제를 입력하세요"></div>
+          <div class="field"><label>문항 수</label><input id="count" type="number" min="1" max="12" value="5"></div>
+          <div class="field"><label>오개념 개수 <span class="hint">분석할 대표 오개념</span></label><input id="mccount" type="number" min="3" max="8" value="5"></div>
+          <div class="field full"><label>AI에게 요청 <span class="hint">특정 오개념 강조·상황 맥락·난이도 등</span></label>
+            <textarea id="request" placeholder="예: 정전기 유도와 마찰전기를 혼동하는 오개념을 꼭 포함, 일상 현상 상황으로 출제해 주세요."></textarea></div>
+        </div>
+        <div class="generate-row"><button class="btn btn-primary btn-lg" id="genBtn" onclick="generateAll()"><span id="genLabel">오개념 분석 · 이단계 문항 생성</span></button></div>
+        <div id="genError"></div>
+      </div>
+
+      <div id="mcArea"></div>
+      <div id="qArea">
+        <div class="empty"><div class="big">아직 생성된 문항이 없습니다</div><div>주제를 입력하고 <b>오개념 분석 · 이단계 문항 생성</b>을 눌러 보세요.</div></div>
+      </div>
+
+      <div class="qr-actions no-print" id="qrActions" style="display:none">
+        <button class="btn btn-ghost" onclick="addBlank()">+ 빈 문항 추가</button>
+        <button class="btn btn-primary" onclick="publishQuiz()">QR 코드 생성</button>
+      </div>
+      <div class="card no-print" id="publishPanel" style="display:none"><h3 style="margin:0 0 6px;font-size:17px">학생에게 배포하기</h3><div id="publishBody"></div></div>
+    </section>
+
+    <section id="tab-result" class="hidden">
+      <div id="resultArea">
+        <div class="empty"><div class="big">확인할 결과가 없습니다</div><div>문항을 만들어 <b>QR 코드 생성</b>으로 배포하면 오개념 현황이 여기에 모입니다.</div></div>
+      </div>
+    </section>
+  </div>
+
+  <div id="studentApp" class="hidden"><div id="studentBody"></div></div>
+</div>
+
+<div class="modal-bg" id="settingsModal">
+  <div class="modal">
+    <h3>설정</h3>
+    <p class="msub">API 키는 이 브라우저에만 저장되며 학생이나 서버로 전송되지 않습니다.</p>
+    <div class="field"><label>Gemini API 키 <span class="hint">문항 생성용 (교사 기기)</span></label><input id="cfgKey" type="password" placeholder="AIza..."></div>
+    <div class="field"><label>모델 <span class="hint">예: gemini-2.0-flash</span></label><input id="cfgModel" placeholder="gemini-2.0-flash"></div>
+    <div class="field"><label>Apps Script URL <span class="hint">파일에 미리 넣었다면 비워도 됨</span></label><input id="cfgUrl" placeholder="https://script.google.com/macros/s/.../exec"></div>
+    <div class="modal-actions"><button class="btn btn-ghost" onclick="closeSettings()">닫기</button><button class="btn btn-primary" onclick="saveSettings()">저장</button></div>
+  </div>
+</div>
+
 <script>
-// Firebase 초기화 (라이브러리 로드 대기 + 안전 처리)
-const firebaseConfig = {
-  apiKey: "AIzaSyCEfanJFvovY499hYXKaxkJnI2WZqG6ydU",
-  authDomain: "assess-ai-77355.firebaseapp.com",
-  databaseURL: "https://assess-ai-77355-default-rtdb.firebaseio.com",
-  projectId: "assess-ai-77355",
-  storageBucket: "assess-ai-77355.firebasestorage.app",
-  messagingSenderId: "36791489485",
-  appId: "1:36791489485:web:937b4ed1dd67af92b4aa84"
-};
+/* ============================================================
+   ▼▼▼ 배포 전 이 한 줄만 본인 Apps Script 웹앱 URL로 바꾸세요 ▼▼▼ */
+const SCRIPT_URL_HARDCODED = "PASTE_YOUR_APPS_SCRIPT_URL_HERE";
+/* ▲▲▲ 예: "https://script.google.com/macros/s/AKfy.../exec" ▲▲▲
+   ============================================================ */
 
-function safeInitFirebase(){
-  if(typeof firebase==="undefined"||!firebase.initializeApp)return false;
-  try{firebase.initializeApp(firebaseConfig);return true;}
-  catch(e){if(e.message&&e.message.includes("already exists"))return true;console.error("[Firebase] init error:",e);return false;}
+const CIRCLED = "①②③④⑤⑥⑦⑧⑨";
+let state = { questions:[], misconceptions:[], editing:-1, mcEditing:-1, activeCode:null };
+
+/* ---------- 설정 ---------- */
+function getCfg(){
+  let c={}; try{ c=JSON.parse(localStorage.getItem("assess_cfg")||"{}"); }catch(e){}
+  const hard=(SCRIPT_URL_HARDCODED&&!SCRIPT_URL_HARDCODED.startsWith("PASTE"))?SCRIPT_URL_HARDCODED:"";
+  return { apiKey:c.apiKey||"", model:c.model||"gemini-2.0-flash", scriptUrl: hard || c.scriptUrl || "" };
 }
-if(!safeInitFirebase()){
-  let retries=0;
-  const iv=setInterval(()=>{
-    if(safeInitFirebase()||retries>30){clearInterval(iv);}
-    retries++;
-  },200);
+function openSettings(){ const c=getCfg();
+  document.getElementById("cfgKey").value=c.apiKey; document.getElementById("cfgModel").value=c.model;
+  const hard=(SCRIPT_URL_HARDCODED&&!SCRIPT_URL_HARDCODED.startsWith("PASTE"));
+  document.getElementById("cfgUrl").value=hard?SCRIPT_URL_HARDCODED:c.scriptUrl; document.getElementById("cfgUrl").disabled=hard;
+  document.getElementById("settingsModal").classList.add("show"); }
+function closeSettings(){ document.getElementById("settingsModal").classList.remove("show"); }
+function saveSettings(){ const cur=getCfg();
+  const cfg={ apiKey:document.getElementById("cfgKey").value.trim(), model:document.getElementById("cfgModel").value.trim()||"gemini-2.0-flash",
+    scriptUrl:document.getElementById("cfgUrl").disabled?cur.scriptUrl:document.getElementById("cfgUrl").value.trim() };
+  localStorage.setItem("assess_cfg",JSON.stringify(cfg)); closeSettings(); updateCfgBanner(); toast("설정을 저장했어요"); }
+function updateCfgBanner(){ const c=getCfg(), el=document.getElementById("cfgBanner"); if(!el)return;
+  const miss=[]; if(!c.apiKey)miss.push("Gemini API 키"); if(!c.scriptUrl)miss.push("Apps Script URL");
+  el.innerHTML=miss.length?`<div class="warn" style="margin:0 0 16px">${miss.join(" · ")}가 설정되지 않았어요. 오른쪽 위 <b>⚙ 설정</b>에서 입력해 주세요.</div>`:""; }
+
+/* ---------- 백엔드(구글 시트) ---------- */
+async function apiGet(params){ const c=getCfg(); if(!c.scriptUrl) throw new Error("Apps Script URL 미설정");
+  const r=await fetch(c.scriptUrl+"?"+new URLSearchParams(params).toString()); return r.json(); }
+async function apiPost(body){ const c=getCfg(); if(!c.scriptUrl) throw new Error("Apps Script URL 미설정");
+  const r=await fetch(c.scriptUrl,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(body)}); return r.json(); }
+
+/* ---------- Gemini API (본인 키, 브라우저 직접 호출) ---------- */
+async function callAI(prompt, maxTokens){
+  const c=getCfg(); if(!c.apiKey) throw new Error("Gemini API 키가 없습니다. ⚙ 설정에서 입력하세요");
+  const model=c.model||"gemini-2.0-flash";
+  const url=`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(c.apiKey)}`;
+  const res=await fetch(url,{ method:"POST", headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({ contents:[{parts:[{text:prompt}]}],
+      generationConfig:{ maxOutputTokens:maxTokens||4096, temperature:0.6, responseMimeType:"application/json" } }) });
+  if(!res.ok){ const t=await res.text().catch(()=> ""); throw new Error("API 오류("+res.status+") "+t.slice(0,200)); }
+  const data=await res.json();
+  const cand=data.candidates&&data.candidates[0];
+  if(!cand){ const bl=data.promptFeedback&&data.promptFeedback.blockReason; throw new Error(bl?("요청 차단: "+bl):"응답이 비어 있습니다"); }
+  const parts=(cand.content&&cand.content.parts)||[];
+  return parts.map(p=>p.text||"").join("").trim();
 }
-</script>
-<script type="text/babel">
-const { useState, useEffect, useRef } = React;
+function parseJSON(text,arr){ let t=(text||"").replace(/```json/gi,"").replace(/```/g,"").trim();
+  const o=arr?"[":"{",c=arr?"]":"}"; const s=t.indexOf(o),e=t.lastIndexOf(c); if(s!==-1&&e!==-1) t=t.slice(s,e+1); return JSON.parse(t); }
+function val(id){return document.getElementById(id).value.trim();}
+function ctx(){ return `- 교육과정: ${val("curriculum")}
+- 학년: ${val("grade")}
+- 학습 주제: ${val("unit")||"(미입력 — 학년 수준 대표 주제로 자율 선택)"}
+- 추가 요청: ${val("request")||"없음"}`; }
 
-const BL="#1D4ED8", DK="#1E293B";
-const btn=(bg,col="white",ex={})=>({padding:"10px 20px",background:bg,color:col,border:"none",borderRadius:8,cursor:"pointer",fontWeight:700,fontSize:14,...ex});
-const inp={padding:"10px 12px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:14,width:"100%",boxSizing:"border-box",outline:"none",fontFamily:"inherit"};
-const shortCode=id=>id?id.slice(-6).toUpperCase():"";
+/* ---------- 역할 라우팅 ---------- */
+function hashParams(){ return new URLSearchParams((location.hash||"").replace(/^#/,"")); }
+function detectRole(){ return hashParams().get("role")==="student"?"student":"teacher"; }
+let role=detectRole();
+function applyRole(){ const t=document.getElementById("teacherApp"), s=document.getElementById("studentApp");
+  if(role==="student"){ t.classList.add("hidden"); s.classList.remove("hidden");
+    document.getElementById("kicker").textContent="오개념 진단 · 학생용";
+    document.getElementById("title").textContent="진단평가";
+    document.getElementById("subtitle").textContent="학번을 입력하고, 각 문항의 1·2단계를 모두 고른 뒤 제출하세요.";
+    document.getElementById("settingsChip").classList.add("hidden");
+    document.getElementById("roleChip").textContent="교사 화면 →"; loadStudentQuiz();
+  }else{ s.classList.add("hidden"); t.classList.remove("hidden");
+    document.getElementById("kicker").textContent="중학교 과학 · 이단계 오개념 진단";
+    document.getElementById("title").textContent="AI 오개념 진단평가";
+    document.getElementById("subtitle").textContent="이단계형(현상 + 이유) 문항으로 학생의 오개념 보유 여부를 진단합니다.";
+    document.getElementById("settingsChip").classList.remove("hidden");
+    document.getElementById("roleChip").textContent="학생 화면 미리보기 →"; updateCfgBanner(); } }
+function toggleRole(){ if(role==="student"){ location.hash=""; role="teacher"; } else role="student"; applyRole(); }
+document.querySelectorAll(".tab").forEach(t=>{ t.onclick=()=>{ document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active")); t.classList.add("active");
+  const tab=t.dataset.tab; document.getElementById("tab-make").classList.toggle("hidden",tab!=="make"); document.getElementById("tab-result").classList.toggle("hidden",tab!=="result");
+  if(tab==="result") renderResults(); }; });
 
-const FIREBASE_URL = "https://assess-ai-77355-default-rtdb.firebaseio.com";
+/* ---------- 정규화 ---------- */
+function normMc(m){ return {id:m.id||("M"+Math.random().toString(36).slice(2,5)),name:m.name||"",description:m.description||""}; }
+function normalize(q){ return {
+  type: q.type || "이단계형",
+  question: q.question||"",
+  options: Array.isArray(q.options)?q.options:[],
+  answer: q.answer||"",
+  reasonPrompt: q.reasonPrompt||"위와 같이 생각한 이유로 가장 알맞은 것은?",
+  reasons: Array.isArray(q.reasons)?q.reasons:[],
+  reasonAnswer: q.reasonAnswer||"",
+  reasonMap: Array.isArray(q.reasonMap)?q.reasonMap:[],
+  optionMap: Array.isArray(q.optionMap)?q.optionMap:[],
+  targets: Array.isArray(q.targets)?q.targets:[],
+  concept: q.concept||"", explanation: q.explanation||"" }; }
 
-// 진단 수준 색상/라벨
-const LV = {
-  "도달":   {bg:"#DCFCE7", fg:"#166534", bd:"#86EFAC"},
-  "부분도달":{bg:"#FEF9C3", fg:"#854D0E", bd:"#FDE047"},
-  "미도달":  {bg:"#FEE2E2", fg:"#991B1B", bd:"#FCA5A5"},
-  "미응답":  {bg:"#F1F5F9", fg:"#64748B", bd:"#E2E8F0"},
-};
+/* ---------- 생성 ---------- */
+async function generateAll(){
+  if(!getCfg().apiKey){ openSettings(); return; }
+  const count=Math.max(1,Math.min(12,parseInt(val("count"))||5));
+  const mccount=Math.max(3,Math.min(8,parseInt(val("mccount"))||5));
+  if(!val("unit")&&!confirm("학습 주제가 비어 있습니다. 학년 수준 대표 주제로 생성할까요?"))return;
+  setGenLoading(true); showError("");
+  const prompt=`너는 대한민국 중학교 과학교육과 학생 '오개념(misconception)' 연구에 정통한 전문가야.
+${ctx()}
 
-// ── 다국어 (학생 화면 전용) ────────────────────────────────
-const LANGS=[["ko","한국어"],["en","English"],["zh","中文"],["vi","Tiếng Việt"],["ru","Русский"],["ja","日本語"],["uz","O'zbek"],["mn","Монгол"],["th","ไทย"]];
-const T={
-  ko:{aiLang:"한국어",langLabel:"언어 선택 / Language",idLabel:"학년-반-번호를 입력하세요",idPh:"예: 3-2-15",confirm:"확인하기",qCount:n=>`문제 ${n}개 · 서술형 진단`,loading:"로딩 중...",notFound:"진단평가를 찾을 수 없습니다.",progress:(a,b)=>`문제 ${a} / ${b}`,prevAnswer:"이전에 제출한 답변",answerPh:"답을 입력하세요 (Ctrl+Enter로 제출)",diagnosing:"⏳ AI가 진단 중...",submitLast:"제출하고 진단 결과 보기",submitNext:"제출하고 다음 문제 →",saving:"💾 저장 중...",saved:"✓ 서버에 저장됨",saveErr:"⚠️ 저장 실패! 다시 제출해주세요",overall:"나의 종합 이해도",summary:(a,b,c)=>`✅ 도달 ${a} · 🟡 부분 ${b} · 🔴 미도달 ${c}`,reviewNeeded:"📌 복습이 필요한 개념",problemN:i=>`문제 ${i}`,myAnswer:"내 답변:",diagnosis:"진단:",conceptReview:"개념 정리:",complete:"진단이 완료되었습니다. 수고했어요! 🎉",noAnswer:"미응답",levels:{"도달":"도달","부분도달":"부분도달","미도달":"미도달","미응답":"미응답"}},
-  en:{aiLang:"English",langLabel:"Language",idLabel:"Enter your grade-class-number",idPh:"e.g. 3-2-15",confirm:"Enter",qCount:n=>`${n} questions · short-answer diagnostic`,loading:"Loading...",notFound:"Diagnostic test not found.",progress:(a,b)=>`Question ${a} / ${b}`,prevAnswer:"Your previous answer",answerPh:"Type your answer (Ctrl+Enter to submit)",diagnosing:"⏳ AI is assessing...",submitLast:"Submit and view results",submitNext:"Submit and next question →",saving:"💾 Saving...",saved:"✓ Saved to server",saveErr:"⚠️ Save failed! Please submit again",overall:"My overall understanding",summary:(a,b,c)=>`✅ Proficient ${a} · 🟡 Partial ${b} · 🔴 Not yet ${c}`,reviewNeeded:"📌 Concepts to review",problemN:i=>`Question ${i}`,myAnswer:"My answer:",diagnosis:"Diagnosis:",conceptReview:"Key concept:",complete:"Assessment complete. Great job! 🎉",noAnswer:"No answer",levels:{"도달":"Proficient","부분도달":"Partial","미도달":"Not yet","미응답":"No answer"}},
-  zh:{aiLang:"中文(简体)",langLabel:"语言选择",idLabel:"请输入年级-班级-学号",idPh:"例：3-2-15",confirm:"确认",qCount:n=>`${n} 道题 · 简答诊断`,loading:"加载中...",notFound:"找不到该诊断测评。",progress:(a,b)=>`第 ${a} 题 / 共 ${b} 题`,prevAnswer:"之前提交的答案",answerPh:"请输入答案（Ctrl+Enter 提交）",diagnosing:"⏳ AI 正在评估...",submitLast:"提交并查看诊断结果",submitNext:"提交并进入下一题 →",saving:"💾 保存中...",saved:"✓ 已保存到服务器",saveErr:"⚠️ 保存失败！请重新提交",overall:"我的综合理解度",summary:(a,b,c)=>`✅ 达标 ${a} · 🟡 部分 ${b} · 🔴 未达标 ${c}`,reviewNeeded:"📌 需要复习的概念",problemN:i=>`第 ${i} 题`,myAnswer:"我的答案：",diagnosis:"诊断：",conceptReview:"概念讲解：",complete:"诊断完成，做得好！🎉",noAnswer:"未作答",levels:{"도달":"达标","부분도달":"部分达标","미도달":"未达标","미응답":"未作答"}},
-  vi:{aiLang:"Tiếng Việt",langLabel:"Chọn ngôn ngữ",idLabel:"Nhập khối-lớp-số thứ tự",idPh:"VD: 3-2-15",confirm:"Vào",qCount:n=>`${n} câu hỏi · đánh giá tự luận`,loading:"Đang tải...",notFound:"Không tìm thấy bài đánh giá.",progress:(a,b)=>`Câu ${a} / ${b}`,prevAnswer:"Câu trả lời đã nộp trước đó",answerPh:"Nhập câu trả lời (Ctrl+Enter để nộp)",diagnosing:"⏳ AI đang đánh giá...",submitLast:"Nộp và xem kết quả",submitNext:"Nộp và câu tiếp theo →",saving:"💾 Đang lưu...",saved:"✓ Đã lưu lên máy chủ",saveErr:"⚠️ Lưu thất bại! Vui lòng nộp lại",overall:"Mức độ hiểu bài của tôi",summary:(a,b,c)=>`✅ Đạt ${a} · 🟡 Một phần ${b} · 🔴 Chưa đạt ${c}`,reviewNeeded:"📌 Khái niệm cần ôn lại",problemN:i=>`Câu ${i}`,myAnswer:"Câu trả lời của tôi:",diagnosis:"Chẩn đoán:",conceptReview:"Tóm tắt khái niệm:",complete:"Đã hoàn thành đánh giá. Làm tốt lắm! 🎉",noAnswer:"Chưa trả lời",levels:{"도달":"Đạt","부분도달":"Một phần","미도달":"Chưa đạt","미응답":"Chưa trả lời"}},
-  ru:{aiLang:"русский",langLabel:"Выбор языка",idLabel:"Введите класс-группу-номер",idPh:"напр.: 3-2-15",confirm:"Войти",qCount:n=>`Вопросов: ${n} · развёрнутый ответ`,loading:"Загрузка...",notFound:"Диагностика не найдена.",progress:(a,b)=>`Вопрос ${a} / ${b}`,prevAnswer:"Ранее отправленный ответ",answerPh:"Введите ответ (Ctrl+Enter — отправить)",diagnosing:"⏳ ИИ проверяет...",submitLast:"Отправить и посмотреть результат",submitNext:"Отправить и следующий вопрос →",saving:"💾 Сохранение...",saved:"✓ Сохранено на сервере",saveErr:"⚠️ Ошибка сохранения! Отправьте ещё раз",overall:"Мой общий уровень понимания",summary:(a,b,c)=>`✅ Освоено ${a} · 🟡 Частично ${b} · 🔴 Не освоено ${c}`,reviewNeeded:"📌 Темы для повторения",problemN:i=>`Вопрос ${i}`,myAnswer:"Мой ответ:",diagnosis:"Диагностика:",conceptReview:"Разбор темы:",complete:"Диагностика завершена. Молодец! 🎉",noAnswer:"Нет ответа",levels:{"도달":"Освоено","부분도달":"Частично","미도달":"Не освоено","미응답":"Нет ответа"}},
-  ja:{aiLang:"日本語",langLabel:"言語選択",idLabel:"学年-クラス-番号を入力してください",idPh:"例: 3-2-15",confirm:"入る",qCount:n=>`${n}問 · 記述式診断`,loading:"読み込み中...",notFound:"診断テストが見つかりません。",progress:(a,b)=>`問題 ${a} / ${b}`,prevAnswer:"前回提出した回答",answerPh:"答えを入力してください（Ctrl+Enterで提出）",diagnosing:"⏳ AIが診断中...",submitLast:"提出して診断結果を見る",submitNext:"提出して次の問題へ →",saving:"💾 保存中...",saved:"✓ サーバーに保存しました",saveErr:"⚠️ 保存失敗！もう一度提出してください",overall:"私の総合理解度",summary:(a,b,c)=>`✅ 到達 ${a} · 🟡 一部 ${b} · 🔴 未到達 ${c}`,reviewNeeded:"📌 復習が必要な概念",problemN:i=>`問題 ${i}`,myAnswer:"私の回答:",diagnosis:"診断:",conceptReview:"概念のまとめ:",complete:"診断が完了しました。お疲れさま！🎉",noAnswer:"未回答",levels:{"도달":"到達","부분도달":"一部到達","미도달":"未到達","미응답":"未回答"}},
-  uz:{aiLang:"o'zbek tili",langLabel:"Til tanlash",idLabel:"Sinf-guruh-raqamni kiriting",idPh:"masalan: 3-2-15",confirm:"Kirish",qCount:n=>`${n} ta savol · yozma baholash`,loading:"Yuklanmoqda...",notFound:"Diagnostika topilmadi.",progress:(a,b)=>`Savol ${a} / ${b}`,prevAnswer:"Avval yuborilgan javob",answerPh:"Javobingizni kiriting (Ctrl+Enter — yuborish)",diagnosing:"⏳ AI baholamoqda...",submitLast:"Yuborish va natijani ko'rish",submitNext:"Yuborish va keyingi savol →",saving:"💾 Saqlanmoqda...",saved:"✓ Serverga saqlandi",saveErr:"⚠️ Saqlash xato! Qayta yuboring",overall:"Umumiy tushunish darajam",summary:(a,b,c)=>`✅ Yetdi ${a} · 🟡 Qisman ${b} · 🔴 Yetmadi ${c}`,reviewNeeded:"📌 Takrorlash kerak tushunchalar",problemN:i=>`Savol ${i}`,myAnswer:"Mening javobim:",diagnosis:"Tashxis:",conceptReview:"Tushuncha izohi:",complete:"Baholash tugadi. Barakalla! 🎉",noAnswer:"Javob yo'q",levels:{"도달":"Yetdi","부분도달":"Qisman","미도달":"Yetmadi","미응답":"Javob yo'q"}},
-  mn:{aiLang:"монгол хэл",langLabel:"Хэл сонгох",idLabel:"Анги-бүлэг-дугаараа оруулна уу",idPh:"жишээ: 3-2-15",confirm:"Орох",qCount:n=>`${n} асуулт · бичгийн үнэлгээ`,loading:"Ачааллаж байна...",notFound:"Оношилгоо олдсонгүй.",progress:(a,b)=>`Асуулт ${a} / ${b}`,prevAnswer:"Өмнө илгээсэн хариулт",answerPh:"Хариултаа бичнэ үү (Ctrl+Enter илгээх)",diagnosing:"⏳ AI үнэлж байна...",submitLast:"Илгээж, үр дүнг харах",submitNext:"Илгээж, дараагийн асуулт →",saving:"💾 Хадгалж байна...",saved:"✓ Серверт хадгалагдлаа",saveErr:"⚠️ Хадгалж чадсангүй! Дахин илгээнэ үү",overall:"Миний ойлголтын түвшин",summary:(a,b,c)=>`✅ Хүрсэн ${a} · 🟡 Хэсэгчлэн ${b} · 🔴 Хүрээгүй ${c}`,reviewNeeded:"📌 Давтах шаардлагатай ойлголт",problemN:i=>`Асуулт ${i}`,myAnswer:"Миний хариулт:",diagnosis:"Оношилгоо:",conceptReview:"Ойлголтын тайлбар:",complete:"Үнэлгээ дууслаа. Сайн байна! 🎉",noAnswer:"Хариугүй",levels:{"도달":"Хүрсэн","부분도달":"Хэсэгчлэн","미도달":"Хүрээгүй","미응답":"Хариугүй"}},
-  th:{aiLang:"ภาษาไทย",langLabel:"เลือกภาษา",idLabel:"กรอกชั้น-ห้อง-เลขที่",idPh:"เช่น 3-2-15",confirm:"ยืนยัน",qCount:n=>`${n} ข้อ · ประเมินแบบเขียนตอบ`,loading:"กำลังโหลด...",notFound:"ไม่พบแบบทดสอบวินิจฉัย",progress:(a,b)=>`ข้อ ${a} / ${b}`,prevAnswer:"คำตอบที่ส่งก่อนหน้า",answerPh:"พิมพ์คำตอบของคุณ (Ctrl+Enter เพื่อส่ง)",diagnosing:"⏳ AI กำลังประเมิน...",submitLast:"ส่งและดูผลการวินิจฉัย",submitNext:"ส่งและไปข้อถัดไป →",saving:"💾 กำลังบันทึก...",saved:"✓ บันทึกลงเซิร์ฟเวอร์แล้ว",saveErr:"⚠️ บันทึกไม่สำเร็จ! กรุณาส่งอีกครั้ง",overall:"ระดับความเข้าใจโดยรวมของฉัน",summary:(a,b,c)=>`✅ ผ่าน ${a} · 🟡 บางส่วน ${b} · 🔴 ยังไม่ผ่าน ${c}`,reviewNeeded:"📌 แนวคิดที่ต้องทบทวน",problemN:i=>`ข้อ ${i}`,myAnswer:"คำตอบของฉัน:",diagnosis:"การวินิจฉัย:",conceptReview:"สรุปแนวคิด:",complete:"การประเมินเสร็จสิ้น เก่งมาก! 🎉",noAnswer:"ไม่ได้ตอบ",levels:{"도달":"ผ่าน","부분도달":"บางส่วน","미도달":"ยังไม่ผ่าน","미응답":"ไม่ได้ตอบ"}},
-};
+[1단계 · 오개념 분석] 이 주제에 대해 해당 학년 학생들이 흔히 갖는, 과학교육 문헌에서 반복적으로 보고되는 '대표 오개념'을 ${mccount}개 도출.
+- 실제로 잘 알려진 오개념만. 없는 논문 제목·출처를 지어내지 말 것.
+- 각 항목: id("M1","M2"...), name(한 줄), description(학생이 어떻게·왜 잘못 이해하는지 1~2문장).
 
-// 문제 번역 중 안내 문구
-const TRANSLATING={
-  ko:"⏳ AI가 문제를 번역하는 중...",en:"⏳ AI is translating the questions...",zh:"⏳ AI 正在翻译题目...",vi:"⏳ AI đang dịch câu hỏi...",ru:"⏳ ИИ переводит вопросы...",ja:"⏳ AIが問題を翻訳中...",uz:"⏳ AI savollarni tarjima qilmoqda...",mn:"⏳ AI асуултуудыг орчуулж байна...",th:"⏳ AI กำลังแปลคำถาม..."
-};
+[2단계 · 이단계형(two-tier) 진단 문항] 위 오개념을 진단하는 이단계형 문항 ${count}개.
+- 1단계: 현상/상황에 대한 객관식(선택지 4개, ①~④), 정답 1개.
+- 2단계: "그렇게 생각한 이유"를 묻는 객관식(선택지 4개). 정확히 1개만 과학적으로 옳은 이유이고, 나머지 오답은 각각 특정 오개념(M#)을 반영.
+- reasonMap: 2단계 선택지 순서대로 "correct" 또는 해당 오개념 id 를 담은 배열(길이 4).
+- 학생은 1·2단계 모두 맞아야 '올바른 이해'로 판정하며, 2단계 오답으로 오개념을 진단.
+- 발문은 학생 수준으로 명확히, 가능하면 일상 상황·현상 기반.
 
-// 객관식 관련 다국어
-const MC={
-  pickAnswer:{ko:"정답을 선택하세요",en:"Choose the correct answer",zh:"请选择正确答案",vi:"Chọn đáp án đúng",ru:"Выберите правильный ответ",ja:"正しい答えを選んでください",uz:"To'g'ri javobni tanlang",mn:"Зөв хариултаа сонгоно уу",th:"เลือกคำตอบที่ถูกต้อง"},
-  correctAnswer:{ko:"정답:",en:"Correct answer:",zh:"正确答案：",vi:"Đáp án đúng:",ru:"Правильный ответ:",ja:"正解:",uz:"To'g'ri javob:",mn:"Зөв хариулт:",th:"คำตอบที่ถูกต้อง:"},
-  correct:{ko:"정답입니다! 잘했어요.",en:"Correct! Well done.",zh:"回答正确！做得好。",vi:"Chính xác! Làm tốt lắm.",ru:"Верно! Молодец.",ja:"正解です！よくできました。",uz:"To'g'ri! Barakalla.",mn:"Зөв! Сайн байна.",th:"ถูกต้อง! เก่งมาก"},
-  incorrect:{ko:"아쉽게 틀렸어요.",en:"Not quite — that's incorrect.",zh:"很可惜，答错了。",vi:"Rất tiếc, chưa đúng.",ru:"Увы, неверно.",ja:"残念、不正解です。",uz:"Afsus, noto'g'ri.",mn:"Харамсалтай, буруу байна.",th:"น่าเสียดาย ตอบผิด"}
-};
-
-const CFG={
-  get apiKey(){return localStorage.getItem("aai_key")||"";},
-  set apiKey(v){localStorage.setItem("aai_key",v);},
-};
-async function loadGeminiKey(){
+반드시 아래 JSON으로만 응답:
+{"misconceptions":[{"id":"M1","name":"...","description":"..."}],
+ "questions":[{"type":"이단계형","question":"1단계 발문","options":["① ...","② ...","③ ...","④ ..."],"answer":"1단계 정답 선택지 내용",
+   "reasonPrompt":"2단계 발문","reasons":["① ...","② ...","③ ...","④ ..."],"reasonAnswer":"2단계 정답 선택지 내용","reasonMap":["...","correct","...","..."],
+   "targets":["M#"],"concept":"핵심 개념","explanation":"정답 근거 및 각 이유 오답이 드러내는 오개념 요약"}]}`;
   try{
-    const r=await fetch(`${FIREBASE_URL}/config/geminiKey.json`);
-    const d=await r.json();
-    if(d&&typeof d==="string"){CFG.apiKey=d;return true;}
-    return false;
-  }catch{return false;}
+    const obj=parseJSON(await callAI(prompt,8192),false);
+    state.misconceptions=(obj.misconceptions||[]).map(normMc);
+    state.questions=(obj.questions||[]).map(normalize);
+    state.editing=-1; state.mcEditing=-1; document.getElementById("publishPanel").style.display="none";
+    renderMisconceptions(); renderQuestions();
+  }catch(err){ showError("생성 실패: "+err.message); }
+  finally{ setGenLoading(false); }
+}
+async function regenFromMc(){
+  if(!state.misconceptions.length){ toast("먼저 오개념을 분석하세요"); return; }
+  const count=Math.max(1,Math.min(12,parseInt(val("count"))||5));
+  setGenLoading(true,"이단계 문항 다시 생성 중…"); showError("");
+  const mcList=state.misconceptions.map(m=>`${m.id}: ${m.name} — ${m.description}`).join("\n");
+  const prompt=`너는 중학교 과학 오개념 진단 이단계형 문항 출제 전문가야.
+${ctx()}
+아래 '고정' 오개념 목록만 사용해(새 오개념 만들지 말고 이 id만) 이단계형 문항 ${count}개 생성.
+${mcList}
+
+각 문항: 1단계 객관식(4지, 정답1) + 2단계 이유 객관식(4지, 정답1, 오답은 위 오개념 반영). reasonMap은 2단계 선택지 순서대로 "correct" 또는 위 id.
+아래 JSON 배열로만 응답:
+[{"type":"이단계형","question":"...","options":["① ...","② ...","③ ...","④ ..."],"answer":"1단계 정답 내용","reasonPrompt":"...","reasons":["① ...","② ...","③ ...","④ ..."],"reasonAnswer":"2단계 정답 내용","reasonMap":["...","correct","...","..."],"targets":["M#"],"concept":"...","explanation":"..."}]`;
+  try{ state.questions=parseJSON(await callAI(prompt,8192),true).map(normalize); state.editing=-1; renderQuestions(); }
+  catch(err){ showError("문항 재생성 실패: "+err.message); }
+  finally{ setGenLoading(false); }
+}
+async function regenerate(i){
+  const btn=document.getElementById("reg-"+i); if(btn){btn.disabled=true;btn.textContent="생성 중…";} showError("");
+  const mcList=state.misconceptions.map(m=>`${m.id}: ${m.name} — ${m.description}`).join("\n");
+  const existing=state.questions.map((q,idx)=>(idx+1)+". "+q.question).join("\n");
+  const prompt=`너는 중학교 과학 오개념 진단 이단계형 출제 전문가야. 아래 오개념 목록을 이용해 기존과 겹치지 않는 '새' 이단계형 문항 1개만 생성.
+${ctx()}
+오개념 목록(이 id만 사용):
+${mcList}
+기존 문항:
+${existing}
+아래 JSON 객체 하나만 응답:
+{"type":"이단계형","question":"...","options":["① ...","② ...","③ ...","④ ..."],"answer":"1단계 정답 내용","reasonPrompt":"...","reasons":["① ...","② ...","③ ...","④ ..."],"reasonAnswer":"2단계 정답 내용","reasonMap":["...","correct","...","..."],"targets":["M#"],"concept":"...","explanation":"..."}`;
+  try{ state.questions[i]=normalize(parseJSON(await callAI(prompt,3000),false)); state.editing=-1; renderQuestions(); }
+  catch(err){ showError("재출제 실패: "+err.message); if(btn){btn.disabled=false;btn.textContent="재출제";} }
 }
 
-// ── Firebase DB (진단평가 전용 경로: diagnostics / diagResults) ──
-const DB={
-  async getA(uid){
-    try{
-      const r=await fetch(`${FIREBASE_URL}/diagnostics/${uid}.json`);
-      const d=await r.json();
-      if(!d)return[];
-      return Object.values(d).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
-    }catch{return[];}
-  },
-  async setA(uid, arr){
-    const obj={};arr.forEach(a=>{obj[a.id]=a;});
-    await fetch(`${FIREBASE_URL}/diagnostics/${uid}.json`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(obj)});
-  },
-  async findAssessment(asmId){
-    try{
-      const r=await fetch(`${FIREBASE_URL}/diagnostics.json`);
-      const d=await r.json();
-      if(!d)return null;
-      for(const uid of Object.keys(d)){
-        if(d[uid][asmId])return {...d[uid][asmId], _ownerUid:uid};
-      }
-      return null;
-    }catch{return null;}
-  },
-  async getR(uid, id){
-    try{
-      const r=await fetch(`${FIREBASE_URL}/diagResults/${uid}/${id}.json`);
-      const d=await r.json();
-      if(!d)return[];
-      return Object.values(d);
-    }catch{return[];}
-  },
-  async setROne(uid, id, studentData){
-    const key=studentData.studentId.replace(/[.#$/[\]\s]/g,"_");
-    const res=await fetch(`${FIREBASE_URL}/diagResults/${uid}/${id}/${key}.json`,{
-      method:"PUT",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify(studentData)
-    });
-    if(!res.ok)throw new Error(`저장 실패: ${res.status}`);
-    return await res.json();
-  },
-};
-
-async function askAI(msgs,sys,maxTokens=1200){
-  const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${CFG.apiKey}`,{
-    method:"POST",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({system_instruction:{parts:[{text:sys}]},contents:msgs,generationConfig:{maxOutputTokens:maxTokens,temperature:0,thinkingConfig:{thinkingBudget:0}}}),
-  });
-  const d=await res.json();
-  if(d.error)throw new Error(d.error.message);
-  return d.candidates[0].content.parts.filter(p=>p.text).map(p=>p.text).join("");
+/* ---------- 오개념 패널 ---------- */
+function mcName(id){ const m=state.misconceptions.find(x=>x.id===id); return m?m.name:id; }
+function renderMisconceptions(){
+  const el=document.getElementById("mcArea");
+  if(!state.misconceptions.length){ el.innerHTML=""; return; }
+  const items=state.misconceptions.map((m,i)=> state.mcEditing===i?mcEdit(m,i):mcView(m,i)).join("");
+  el.innerHTML=`<div class="card" style="margin-top:16px">
+    <div class="h3row" style="margin:0 0 12px"><h2>📚 주요 오개념 분석 <span style="color:var(--ink-faint);font-weight:600;font-size:13px">${state.misconceptions.length}개</span></h2>
+      <button class="btn btn-ghost no-print" onclick="regenFromMc()">이 오개념으로 문항 다시 생성</button></div>
+    <div class="mc-list">${items}</div>
+    <p class="no-print" style="color:var(--ink-faint);font-size:12.5px;margin:12px 0 0">문헌에서 보고되는 대표 오개념을 AI가 정리했습니다. 필요하면 수정·삭제 후 문항을 다시 생성하세요.</p></div>`;
 }
-function extractJSON(raw){
-  const cleaned=raw.replace(/```json|```/g,"").trim();
-  const objM=cleaned.match(/\{[\s\S]*\}/);
-  const arrM=cleaned.match(/\[[\s\S]*\]/);
-  const pick = arrM && (!objM || arrM.index<=objM.index) ? arrM : objM;
-  return pick?JSON.parse(pick[0]):null;
+function mcView(m,i){ return `<div class="mc-item"><span class="mc-id">${esc(m.id)}</span>
+  <div class="mc-body"><div class="mc-name">${esc(m.name)}</div><div class="mc-desc">${esc(m.description)}</div></div>
+  <div class="mc-btns no-print"><button class="iconbtn" onclick="editMc(${i})">수정</button><button class="iconbtn del" onclick="deleteMc(${i})">삭제</button></div></div>`; }
+function mcEdit(m,i){ return `<div class="mc-item" style="display:block">
+  <div class="field"><label>이름</label><input id="mc-n-${i}" value="${esc(m.name)}"></div>
+  <div class="field" style="margin-top:8px"><label>설명</label><textarea id="mc-d-${i}">${esc(m.description)}</textarea></div>
+  <div class="edit-actions"><button class="btn btn-primary" onclick="saveMc(${i})">저장</button><button class="btn btn-ghost" onclick="cancelMc()">취소</button></div></div>`; }
+function editMc(i){ state.mcEditing=i; renderMisconceptions(); }
+function cancelMc(){ state.mcEditing=-1; renderMisconceptions(); }
+function saveMc(i){ state.misconceptions[i].name=document.getElementById("mc-n-"+i).value; state.misconceptions[i].description=document.getElementById("mc-d-"+i).value; state.mcEditing=-1; renderMisconceptions(); }
+function deleteMc(i){ if(!confirm("이 오개념을 삭제할까요?"))return; state.misconceptions.splice(i,1); renderMisconceptions(); renderQuestions(); }
+
+/* ---------- 문항 편집 ---------- */
+function deleteQuestion(i){ if(!confirm((i+1)+"번 문항을 삭제할까요?"))return; state.questions.splice(i,1); if(state.editing===i)state.editing=-1; renderQuestions(); }
+function editQuestion(i){ state.editing=(state.editing===i)?-1:i; renderQuestions(); }
+function cancelEdit(){ state.editing=-1; renderQuestions(); }
+function saveEdit(i){ const q=state.questions[i];
+  q.question=gv("edit-q-"+i); q.answer=gv("edit-a-"+i); q.explanation=gv("edit-e-"+i);
+  q.options=lines(gv("edit-o-"+i));
+  if(q.type==="이단계형"){
+    q.reasonPrompt=gv("edit-rp-"+i); q.reasons=lines(gv("edit-r-"+i)); q.reasonAnswer=gv("edit-ra-"+i); q.reasonMap=lines(gv("edit-rm-"+i));
+  }else{ q.optionMap=lines(gv("edit-m-"+i)); }
+  state.editing=-1; renderQuestions(); }
+function gv(id){ const el=document.getElementById(id); return el?el.value:""; }
+function lines(s){ s=(s||"").trim(); return s?s.split("\n").map(x=>x.trim()).filter(Boolean):[]; }
+function addBlank(){ state.questions.push({type:"이단계형",question:"",options:["① ","② ","③ ","④ "],answer:"",
+  reasonPrompt:"위와 같이 생각한 이유로 가장 알맞은 것은?",reasons:["① ","② ","③ ","④ "],reasonAnswer:"",reasonMap:["correct","","",""],optionMap:[],targets:[],concept:"",explanation:""});
+  state.editing=state.questions.length-1; renderQuestions(); }
+
+/* ---------- 렌더 ---------- */
+function esc(s){return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+function idxByText(options, ans){ options=options||[];
+  for(const ch of (ans||"")){ const k=CIRCLED.indexOf(ch); if(k>=0&&k<options.length) return k; }
+  const na=normText(ans); if(!na) return -1; let best=-1;
+  options.forEach((o,i)=>{ if(normText(o)===na) best=i; });
+  if(best<0) options.forEach((o,i)=>{ if(na&&normText(o).includes(na)) best=i; }); return best; }
+function renderQuestions(){
+  const area=document.getElementById("qArea"), qa=document.getElementById("qrActions");
+  if(state.questions.length===0){ area.innerHTML=`<div class="empty"><div class="big">아직 생성된 문항이 없습니다</div><div>주제를 입력하고 <b>오개념 분석 · 이단계 문항 생성</b>을 눌러 보세요.</div></div>`; qa.style.display="none"; return; }
+  qa.style.display="flex";
+  const head=state.misconceptions.length?`<div class="h3row"><h2>이단계 진단 문항 <span style="color:var(--ink-faint);font-weight:600;font-size:13px">${state.questions.length}개</span></h2></div>`:"";
+  area.innerHTML=head+`<div class="qlist">${state.questions.map((q,i)=> state.editing===i?editCard(q,i):viewCard(q,i)).join("")}</div>`;
 }
-
-function QRImage({url}){
-  const ref=useRef(null);
-  useEffect(()=>{
-    if(!url||!ref.current)return;
-    ref.current.innerHTML="";
-    const gen=()=>new window.QRCode(ref.current,{text:url,width:256,height:256,correctLevel:window.QRCode.CorrectLevel.M});
-    window.QRCode?gen():(()=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js";s.onload=gen;document.head.appendChild(s);})();
-  },[url]);
-  return <div ref={ref} style={{lineHeight:0}}/>;
-}
-function Empty({icon,text}){return<div style={{textAlign:"center",padding:56,color:"#94A3B8"}}><div style={{fontSize:36,marginBottom:12}}>{icon}</div><div style={{fontSize:14}}>{text}</div></div>;}
-function Center({children}){return<div style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:"100vh",background:"#F1F5F9"}}>{children}</div>;}
-function LevelBadge({level,small,label}){const c=LV[level]||LV["미응답"];return<span style={{background:c.bg,color:c.fg,border:`1px solid ${c.bd}`,borderRadius:20,padding:small?"1px 8px":"3px 11px",fontWeight:700,fontSize:small?11:12,whiteSpace:"nowrap"}}>{label||level}</span>;}
-
-// ══════════════════════════════════════════════════════════
-// ROOT
-// ══════════════════════════════════════════════════════════
-function App(){
-  const [mode,setMode]=useState("loading");
-  const [sAsmId,setSAsmId]=useState(null);
-  const [sOwnerUid,setSOwnerUid]=useState(null);
-  const [user,setUser]=useState(null);
-
-  useEffect(()=>{
-    const init=async()=>{
-      await loadGeminiKey();
-      const params=new URLSearchParams(window.location.search);
-      const sid=params.get("id");
-      const code=params.get("code");
-      if(sid){
-        const asm=await DB.findAssessment(sid);
-        if(asm){setSAsmId(sid);setSOwnerUid(asm._ownerUid);setMode("student");return;}
-      }
-      if(code){
-        try{
-          const r=await fetch(`${FIREBASE_URL}/diagnostics.json`);
-          const d=await r.json();
-          if(d){
-            for(const uid of Object.keys(d)){
-              for(const aid of Object.keys(d[uid])){
-                if(shortCode(aid)===code.toUpperCase()){setSAsmId(aid);setSOwnerUid(uid);setMode("student");return;}
-              }
-            }
-          }
-        }catch{}
-      }
-      let waited=0;
-      while((typeof firebase==="undefined"||!firebase.auth)&&waited<8000){await new Promise(r=>setTimeout(r,100));waited+=100;}
-      if(typeof firebase!=="undefined"&&firebase.auth){
-        firebase.auth().onAuthStateChanged(u=>{setUser(u);setMode(u?"teacher":"login");});
-      }else{setMode("login");}
-    };
-    init();
-  },[]);
-
-  if(mode==="loading")return<Center><div style={{color:"#94A3B8"}}>로딩 중...</div></Center>;
-  if(mode==="student")return<StudentPage asmId={sAsmId} ownerUid={sOwnerUid}/>;
-  if(mode==="login")return<LoginPage/>;
-  return<TeacherApp user={user}/>;
-}
-
-// ══════════════════════════════════════════════════════════
-// 로그인 페이지
-// ══════════════════════════════════════════════════════════
-function LoginPage(){
-  const [view,setView]=useState("main");
-  const [code,setCode]=useState("");
-  const [err,setErr]=useState("");
-  const [checking,setChecking]=useState(false);
-
-  const login=async()=>{
-    let waited=0;
-    while((typeof firebase==="undefined"||!firebase.auth)&&waited<5000){await new Promise(r=>setTimeout(r,200));waited+=200;}
-    if(typeof firebase==="undefined"||!firebase.auth){
-      alert("로그인 시스템 연결에 실패했습니다.\n\n다음을 시도해보세요:\n• 페이지 새로고침 (F5)\n• 광고 차단 프로그램 끄기\n• 다른 네트워크(모바일 데이터) 시도");return;
-    }
-    const provider=new firebase.auth.GoogleAuthProvider();
-    try{await firebase.auth().signInWithPopup(provider);}catch(e){alert("로그인 오류: "+e.message);}
-  };
-  const enterAsStudent=async()=>{
-    const c=code.replace("#","").trim().toUpperCase();
-    if(!c){setErr("입장 코드를 입력하세요.");return;}
-    if(c.length!==6){setErr("입장 코드는 6자리입니다.");return;}
-    setChecking(true);setErr("");
-    try{
-      const r=await fetch(`${FIREBASE_URL}/diagnostics.json`);
-      const d=await r.json();
-      let found=false;
-      if(d){for(const uid of Object.keys(d)){for(const aid of Object.keys(d[uid])){if(shortCode(aid)===c){found=true;break;}}if(found)break;}}
-      if(!found){setErr("존재하지 않는 코드입니다. 다시 확인해주세요.");setChecking(false);return;}
-      window.location.search=`?code=${c}`;
-    }catch{setErr("연결 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");setChecking(false);}
-  };
-
-  if(view==="student"){
-    return(
-      <Center>
-        <div style={{background:"white",borderRadius:20,padding:40,width:400,boxShadow:"0 16px 48px rgba(0,0,0,0.12)",textAlign:"center"}}>
-          <div style={{fontSize:48,marginBottom:12}}>🎓</div>
-          <h1 style={{fontSize:22,fontWeight:900,color:BL,marginBottom:8}}>학생 입장</h1>
-          <p style={{color:"#64748B",fontSize:14,marginBottom:28,lineHeight:1.7}}>선생님이 알려주신 입장 코드를 입력하세요<br/><span style={{fontSize:12,color:"#94A3B8"}}>(6자리 영문·숫자)</span></p>
-          <input value={code} onChange={e=>{setCode(e.target.value.toUpperCase());setErr("");}} onKeyDown={e=>e.key==="Enter"&&!checking&&enterAsStudent()} placeholder="A3F2B1" maxLength={6} autoFocus disabled={checking}
-            style={{...inp,fontSize:28,textAlign:"center",fontWeight:900,letterSpacing:6,padding:"16px",borderRadius:10,borderColor:err?"#FCA5A5":"#E2E8F0"}}/>
-          {err&&<div style={{color:"#DC2626",fontSize:12,marginTop:8,fontWeight:600}}>{err}</div>}
-          <button onClick={enterAsStudent} disabled={checking} style={btn(checking?"#94A3B8":BL,undefined,{width:"100%",padding:"14px",fontSize:15,marginTop:14,borderRadius:10,cursor:checking?"not-allowed":"pointer"})}>{checking?"확인 중...":"입장하기"}</button>
-          <button onClick={()=>{setView("main");setCode("");setErr("");}} style={{width:"100%",padding:"11px",background:"none",border:"none",color:"#64748B",fontSize:13,cursor:"pointer",marginTop:4,fontWeight:600}}>← 뒤로가기</button>
-        </div>
-      </Center>
-    );
+function qHead(q,i,label){ return `<div class="q-head"><div class="q-titlewrap"><span class="q-num">${i+1}</span><span class="badge tier">${esc(label||q.type)}</span>${q.concept?`<span class="badge concept">${esc(q.concept)}</span>`:""}</div>
+  <div class="qbtns no-print"><button class="iconbtn" onclick="editQuestion(${i})">수정</button><button class="iconbtn del" onclick="deleteQuestion(${i})">삭제</button><button class="iconbtn" id="reg-${i}" onclick="regenerate(${i})">재출제</button></div></div>`; }
+function viewCard(q,i){
+  if(q.type!=="이단계형"){ // 하위호환(단일 객관식)
+    const opts=q.options.map((o,oi)=>{ const m=q.optionMap&&q.optionMap[oi]; const tag=m==="correct"?`<span class="otag correct">정답</span>`:(m?`<span class="otag">${esc(mcName(m))}</span>`:""); return `<li><span>${esc(o)}</span>${tag}</li>`; }).join("");
+    return `<div class="q">${qHead(q,i,"객관식")}<div><div class="q-question">${esc(q.question)}</div><ul class="opts">${opts}</ul>
+      <div class="answer-box"><b>정답</b> · ${esc(q.answer)||"—"}${q.explanation?`<span class="exp">${esc(q.explanation)}</span>`:""}</div></div></div>`;
   }
-  return(
-    <Center>
-      <div style={{background:"white",borderRadius:20,padding:40,width:400,boxShadow:"0 16px 48px rgba(0,0,0,0.12)",textAlign:"center"}}>
-        <div style={{fontSize:48,marginBottom:12}}>🩺</div>
-        <h1 style={{fontSize:26,fontWeight:900,color:BL,marginBottom:8}}>DIAGNOSE AI</h1>
-        <p style={{color:"#64748B",fontSize:14,marginBottom:28,lineHeight:1.7}}>AI 기반 학생 진단평가 시스템</p>
-        <button onClick={login} style={{width:"100%",padding:"14px",background:"white",border:"1px solid #E2E8F0",borderRadius:10,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:12,fontSize:15,fontWeight:600,color:"#334155",boxShadow:"0 1px 3px rgba(0,0,0,0.06)",marginBottom:10}}>
-          <svg width="20" height="20" viewBox="0 0 24 24">
-            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-          </svg>
-          교사 — Google 계정으로 로그인
-        </button>
-        <button onClick={()=>setView("student")} style={{width:"100%",padding:"14px",background:BL,border:"1px solid "+BL,borderRadius:10,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:10,fontSize:15,fontWeight:600,color:"white",boxShadow:"0 1px 3px rgba(29,78,216,0.2)"}}>
-          <span style={{fontSize:18}}>🎓</span>학생 — 입장 코드로 입장하기
-        </button>
-        <p style={{fontSize:11,color:"#94A3B8",marginTop:18,lineHeight:1.7}}>교사는 로그인하여 진단평가를 관리하고,<br/>학생은 입장 코드로 바로 참여할 수 있습니다.</p>
-      </div>
-    </Center>
-  );
+  const c1=idxByText(q.options,q.answer);
+  const opts1=q.options.map((o,oi)=>`<li><span>${esc(o)}</span>${oi===c1?`<span class="otag correct">정답</span>`:""}</li>`).join("");
+  const opts2=(q.reasons||[]).map((o,oi)=>{ const m=q.reasonMap&&q.reasonMap[oi]; const tag=m==="correct"?`<span class="otag correct">정답</span>`:(m?`<span class="otag">${esc(mcName(m))}</span>`:""); return `<li><span>${esc(o)}</span>${tag}</li>`; }).join("");
+  return `<div class="q">${qHead(q,i,"이단계형")}<div>
+    <div class="tier-label t1">1단계 · 현상</div><div class="q-question">${esc(q.question)}</div><ul class="opts">${opts1}</ul>
+    <div class="tier-label">2단계 · 이유</div><div class="q-question">${esc(q.reasonPrompt)}</div><ul class="opts">${opts2}</ul>
+    <div class="answer-box"><b>정답</b> · 1단계 ${esc(q.answer)||"—"} / 2단계 ${esc(q.reasonAnswer)||"—"}${q.explanation?`<span class="exp">${esc(q.explanation)}</span>`:""}</div></div></div>`;
+}
+function editCard(q,i){
+  const common=`<div class="field"><label>1단계 발문(현상)</label><textarea id="edit-q-${i}">${esc(q.question)}</textarea></div>
+    <div class="field"><label>1단계 선택지 <span class="hint">한 줄에 하나씩</span></label><textarea id="edit-o-${i}">${esc(q.options.join("\n"))}</textarea></div>
+    <div class="field"><label>1단계 정답 <span class="hint">정답 선택지 내용</span></label><input id="edit-a-${i}" value="${esc(q.answer)}"></div>`;
+  const tier2 = q.type==="이단계형" ? `
+    <div class="field"><label>2단계 발문(이유)</label><textarea id="edit-rp-${i}">${esc(q.reasonPrompt)}</textarea></div>
+    <div class="field"><label>2단계 선택지 <span class="hint">한 줄에 하나씩</span></label><textarea id="edit-r-${i}">${esc((q.reasons||[]).join("\n"))}</textarea></div>
+    <div class="field"><label>2단계 진단표 <span class="hint">한 줄에 하나씩 · correct 또는 오개념 id(M1 등)</span></label><textarea id="edit-rm-${i}">${esc((q.reasonMap||[]).join("\n"))}</textarea></div>
+    <div class="field"><label>2단계 정답 <span class="hint">정답 이유 내용</span></label><input id="edit-ra-${i}" value="${esc(q.reasonAnswer)}"></div>`
+    : `<div class="field"><label>선택지별 진단 <span class="hint">correct 또는 오개념 id</span></label><textarea id="edit-m-${i}">${esc((q.optionMap||[]).join("\n"))}</textarea></div>`;
+  return `<div class="q"><div class="q-head"><div class="q-titlewrap"><span class="q-num">${i+1}</span><span class="badge">수정 중</span></div></div>
+    <div class="edit-grid">${common}${tier2}
+      <div class="field"><label>해설</label><textarea id="edit-e-${i}">${esc(q.explanation)}</textarea></div>
+      <div class="edit-actions"><button class="btn btn-primary" onclick="saveEdit(${i})">저장</button><button class="btn btn-ghost" onclick="cancelEdit()">취소</button></div></div></div>`;
 }
 
-// ══════════════════════════════════════════════════════════
-// 교사 앱
-// ══════════════════════════════════════════════════════════
-function TeacherApp({user}){
-  const [tab,setTab]=useState("criteria");
-  const [asms,setAsms]=useState([]);
-  const [ready,setReady]=useState(false);
-  const [menuOpen,setMenuOpen]=useState(false);
-
-  useEffect(()=>{DB.getA(user.uid).then(a=>{setAsms(a);setReady(true);});},[user.uid]);
-  const save=async next=>{await DB.setA(user.uid, next);setAsms(next);};
-  const logout=async()=>{await firebase.auth().signOut();window.location.reload();};
-
-  const TABS=[["criteria","📝 진단평가 출제"],["qr","📱 QR코드"],["results","📊 진단결과"],["enter","🎓 학생입장"]];
-  return(
-    <div style={{minHeight:"100vh",background:"#F1F5F9"}}>
-      <header style={{background:BL,color:"white",padding:"0 20px",display:"flex",alignItems:"center",justifyContent:"space-between",height:54}}>
-        <div style={{display:"flex",alignItems:"center",gap:12}}>
-          <span style={{fontSize:18,fontWeight:900}}>DIAGNOSE AI</span>
-          <span style={{height:16,width:1,background:"rgba(255,255,255,0.3)"}}/>
-          <span style={{fontSize:12,opacity:0.7}}>교사용 관리 페이지</span>
-        </div>
-        <div style={{position:"relative"}}>
-          <button onClick={()=>setMenuOpen(!menuOpen)} style={{display:"flex",alignItems:"center",gap:8,background:"rgba(255,255,255,0.15)",border:"none",borderRadius:20,padding:"4px 12px 4px 4px",cursor:"pointer",color:"white"}}>
-            {user.photoURL ? <img src={user.photoURL} alt="" style={{width:28,height:28,borderRadius:"50%"}}/> : <div style={{width:28,height:28,borderRadius:"50%",background:"rgba(255,255,255,0.3)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14}}>👤</div>}
-            <span style={{fontSize:12,fontWeight:600}}>{user.displayName||"선생님"}</span>
-          </button>
-          {menuOpen && (
-            <div style={{position:"absolute",top:"110%",right:0,background:"white",borderRadius:10,boxShadow:"0 8px 24px rgba(0,0,0,0.15)",minWidth:200,zIndex:100,overflow:"hidden"}}>
-              <div style={{padding:"12px 14px",borderBottom:"1px solid #E2E8F0"}}>
-                <div style={{fontSize:13,fontWeight:700,color:DK}}>{user.displayName}</div>
-                <div style={{fontSize:11,color:"#64748B",marginTop:2}}>{user.email}</div>
-              </div>
-              <button onClick={logout} style={{width:"100%",padding:"11px 14px",border:"none",background:"none",cursor:"pointer",textAlign:"left",fontSize:13,color:"#DC2626",fontWeight:600}}>🚪 로그아웃</button>
-            </div>
-          )}
-        </div>
-      </header>
-      <div style={{background:"white",borderBottom:"1px solid #E2E8F0",display:"flex",paddingLeft:12}}>
-        {TABS.map(([id,label])=>(<button key={id} onClick={()=>setTab(id)} style={{padding:"12px 16px",border:"none",background:"none",cursor:"pointer",fontWeight:tab===id?700:500,fontSize:13,color:tab===id?BL:"#64748B",borderBottom:tab===id?`2px solid ${BL}`:"2px solid transparent"}}>{label}</button>))}
-      </div>
-      <main style={{maxWidth:960,margin:"0 auto",padding:"24px 20px"}}>
-        {!ready?<Empty icon="⏳" text="로딩 중..."/>:<>
-          {tab==="criteria"&&<CriteriaTab asms={asms} onSave={save}/>}
-          {tab==="qr"&&<QRTab asms={asms}/>}
-          {tab==="results"&&<ResultsTab asms={asms} uid={user.uid}/>}
-          {tab==="enter"&&<StudentEnterTab asms={asms}/>}
-        </>}
-      </main>
-    </div>
-  );
+/* ---------- 배포 + QR ---------- */
+function newCode(){ return Math.random().toString(36).slice(2,6).toUpperCase(); }
+function siteBase(){ return location.origin+location.pathname; }
+async function publishQuiz(){
+  const panel=document.getElementById("publishPanel"), body=document.getElementById("publishBody"); panel.style.display="block";
+  const c=getCfg();
+  if(!c.scriptUrl){ body.innerHTML=`<div class="warn">Apps Script URL이 없어요. 파일 상단 <b>SCRIPT_URL_HARDCODED</b>를 바꾸거나 ⚙ 설정에서 입력해 주세요.</div>`; return; }
+  body.innerHTML=`<div class="loading-note"><span class="spinner dark"></span> 문제를 서버에 저장하는 중…</div>`;
+  const code=newCode(); state.activeCode=code; const title=val("unit")||"오개념 진단평가";
+  // 학생용: 정답/오개념 매핑 제외, 2단계 발문·선택지는 포함
+  const studentQ=state.questions.map(q=>({type:q.type,question:q.question,options:q.options,reasonPrompt:q.reasonPrompt,reasons:q.reasons}));
+  localStorage.setItem("assess_key_"+code, JSON.stringify({questions:state.questions,misconceptions:state.misconceptions}));
+  localStorage.setItem("assess_active", code);
+  try{ const res=await apiPost({action:"publish",code,title,grade:val("grade"),questions:studentQ}); if(!res.ok) throw new Error(res.error||"서버 오류"); }
+  catch(err){ body.innerHTML=`<div class="errbar">배포 실패: ${esc(err.message)}<br>Apps Script가 "Anyone" 권한으로 배포됐는지 확인해 주세요.</div>`; return; }
+  const link=siteBase()+"#role=student&code="+code;
+  body.innerHTML=`<div class="infobar">배포 완료! 아래 QR을 학생에게 보여주세요. 스캔하면 <b>바로 풀이 화면</b>이 열립니다.</div>
+    <div style="margin-top:14px"><span class="codepill">참여 코드 ${code}</span></div>
+    <div class="qr-inner"><div class="qr-canvas-wrap"><canvas id="qrCanvas"></canvas></div>
+      <div class="qr-side"><h3 style="margin:0 0 8px">학생 안내용 QR</h3>
+        <p style="color:var(--ink-soft);font-size:13.5px;margin:0 0 12px;word-break:break-all">${esc(link)}</p>
+        <div class="qr-actions" style="margin-top:0"><button class="btn btn-ghost" onclick="copyText('${esc(link)}')">링크 복사</button><button class="btn btn-ghost" onclick="window.print()">인쇄 / PDF</button></div>
+      </div></div>`;
+  try{ new QRious({element:document.getElementById("qrCanvas"),value:link,size:240,level:"M",background:"#ffffff",foreground:"#17222B"}); }catch(e){ toast("QR 생성 실패 — 링크를 복사해 안내하세요"); }
+  panel.scrollIntoView({behavior:"smooth",block:"nearest"});
 }
 
-// ── 진단평가 출제 탭 ──────────────────────────────────────
-function CriteriaTab({asms,onSave}){
-  const emptyQ=()=>({id:Date.now().toString()+Math.random().toString(36).slice(2,6),type:"choice",text:"",concept:"",choices:["","","",""],correct:0,answer:""});
-  const empty={title:"",subject:"",school:"중학교",grade:"",cls:"",questions:[emptyQ()]};
-  const [form,setForm]=useState(empty);
-  const [editId,setEditId]=useState(null);
-  const [flash,setFlash]=useState(false);
-  const [genTopic,setGenTopic]=useState("");
-  const [genN,setGenN]=useState(5);
-  const [gen,setGen]=useState(false);
-  const [curMode,setCurMode]=useState("auto"); // auto | 2022 | 2015
-
-  // 학교급 + 학년 + 현재 연도로 적용 교육과정 자동 판별
-  const gradeNum=parseInt((form.grade||"").replace(/[^0-9]/g,""))||0;
-  const curYear=new Date().getFullYear();
-  const applyYear=(school,g)=>{
-    if(school==="초등학교")return g<=2?2024:g<=4?2025:2026;   // 2022개정 적용 시작연도
-    return g<=1?2025:g<=2?2026:2027;                          // 중·고: 1학년2025, 2학년2026, 3학년2027
-  };
-  const autoCurriculum=gradeNum?(curYear>=applyYear(form.school||"중학교",gradeNum)?"2022":"2015"):"2022";
-  const resolvedCurriculum=curMode==="auto"?autoCurriculum:curMode; // "2022" | "2015"
-
-  const f=k=>e=>setForm(p=>({...p,[k]:e.target.value}));
-  const setQ=(qid,k,v)=>setForm(p=>({...p,questions:p.questions.map(q=>q.id===qid?{...q,[k]:v}:q)}));
-  const setChoice=(qid,ci,v)=>setForm(p=>({...p,questions:p.questions.map(q=>q.id===qid?{...q,choices:q.choices.map((c,i)=>i===ci?v:c)}:q)}));
-  const addChoice=qid=>setForm(p=>({...p,questions:p.questions.map(q=>q.id===qid&&(q.choices||[]).length<6?{...q,choices:[...q.choices,""]}:q)}));
-  const delChoice=(qid,ci)=>setForm(p=>({...p,questions:p.questions.map(q=>{if(q.id!==qid||q.choices.length<=2)return q;const choices=q.choices.filter((_,i)=>i!==ci);let correct=q.correct;if(ci===correct)correct=0;else if(ci<correct)correct=correct-1;return{...q,choices,correct};})}));
-  const addQ=()=>setForm(p=>({...p,questions:[...p.questions,emptyQ()]}));
-  const delQ=qid=>setForm(p=>({...p,questions:p.questions.length>1?p.questions.filter(q=>q.id!==qid):p.questions}));
-
-  const generate=async()=>{
-    if(!genTopic.trim())return alert("생성할 주제를 입력해주세요.");
-    if(!CFG.apiKey)return alert("AI 키를 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.");
-    setGen(true);
-    try{
-      const is22=resolvedCurriculum==="2022";
-      const curName=is22?"2022 개정 교육과정(교육부 고시 제2022-33호)":"2015 개정 교육과정";
-      const curNote=is22
-        ? `- 중학교 과학의 2022 개정 적용 시기는 중1 2025년, 중2 2026년, 중3 2027년입니다. 선수학습 여부는 학년군 계열성(초등 → 중학교)을 기준으로 판단하세요.\n- 2015 개정에서만 다루거나, 2022 개정에서 상위 학년/고등학교로 이동한 내용은 선수학습으로 삼지 마세요.`
-        : `- 이 학년은 현재(${curYear}년) 2015 개정 교육과정이 적용됩니다(예: 2026년 기준 중3). 2015 개정의 학년별 내용 체계와 성취기준에 따라 선수학습을 판단하세요.\n- 2022 개정에서 새로 추가되었거나 학년이 조정된 내용을 이 학년의 선수학습으로 잘못 넣지 마세요.`;
-      const gradeLabel=`${form.school||"중학교"}${form.grade?` ${form.grade}학년`:""}`;
-      const sys=`당신은 ${gradeLabel} ${form.subject||"과학"} 진단평가(사전평가) 출제 전문가입니다.
-
-[★ 기준 교육과정 - 반드시 준수 ★]
-모든 문제는 대한민국 '${curName}'을 기준으로 출제합니다.
-- 이 교육과정의 내용 체계와 성취기준에 따라 각 개념이 '어느 시기에 학습되는지'를 판단하세요.
-- 초등학교 과학은 3학년부터 시작합니다.
-${curNote}
-
-[★ 진단평가의 목적 - 매우 중요 ★]
-이 평가는 학생들이 "${genTopic}" 단원을 '새로 배우기 전에' 실시하는 사전 진단입니다.
-목표는 이 단원을 이해하는 데 필요한 '선수학습 내용', 즉 이 단원을 배우기 이전(이전 학년/학년군 또는 같은 학년의 이전 단원)에 '${curName}'에 따라 이미 배웠어야 하는 관련 개념을 학생이 알고 있는지 확인하는 것입니다.
-
-[출제 절차]
-1. 먼저 "${genTopic}"가 '${curName}'에서 어느 학년(군)·영역·단원에 속하는지 파악합니다.
-2. 그 단원의 성취기준을 이해하기 위해 반드시 선행되어야 하는 '이전에 배운 개념'을 '${curName}' 성취기준에 근거해 도출합니다.
-3. 그 선수학습 개념을 묻는 문제를 만듭니다.
-
-[출제 규칙]
-- "${genTopic}" 단원 자체의 새로운 내용(정의, 현상, 원리)은 절대 묻지 마세요. 그것은 앞으로 배울 내용이므로 진단 대상이 아닙니다.
-- 대신 "${genTopic}"를 학습하기 위한 '토대가 되는, 이전에 배운 개념'을 묻는 문제를 내세요.
-- ${gradeLabel}에서 이 단원을 배우기 직전까지 학생이 이미 학습했을 내용만 다룹니다.
-- 예시: '중2 마찰전기' 단원이라면 → 마찰전기 자체(대전, 전기력 등)를 묻지 말고, 그 이전(초등~중1)에 배운 관련 선수개념(예: 물질을 이루는 입자, 물체 사이에 작용하는 밀고 당기는 힘, 초등 '자석의 이용' 등)을 묻습니다.
-
-[문제 형식]
-- 4지선다 객관식 ${genN}개. 정답은 명확히 하나, 오답 선택지도 그럴듯하게. 학생 수준에 맞게.
-각 문제마다:
-- text: 문제 내용 (선수학습 개념을 묻는 문제)
-- concept: 이 문제가 진단하는 '선수학습 개념'(짧은 명사구)
-- choices: 4개의 선택지 배열
-- correct: 정답 선택지 인덱스 (0부터 시작, 0~3)
-반드시 JSON 배열만 출력하세요. 다른 텍스트 금지.
-형식: [{"text":"...","concept":"...","choices":["...","...","...","..."],"correct":0}]`;
-      const raw=await askAI([{role:"user",parts:[{text:`새로 배울 단원: ${genTopic}\n'${curName}'을 기준으로, 이 단원의 선수학습 내용을 진단하는 문제를 만들어 주세요.`}]}],sys,2800);
-      const arr=extractJSON(raw);
-      if(!Array.isArray(arr)||!arr.length)throw new Error("생성 결과를 해석하지 못했습니다.");
-      setForm(p=>({...p,questions:arr.map(q=>{
-        const choices=Array.isArray(q.choices)&&q.choices.length?q.choices.map(String):["","","",""];
-        let correct=parseInt(q.correct);if(isNaN(correct)||correct<0||correct>=choices.length)correct=0;
-        return{id:Date.now().toString()+Math.random().toString(36).slice(2,6),type:"choice",text:q.text||"",concept:q.concept||"",choices,correct,answer:""};
-      })}));
-    }catch(e){alert("문제 생성 실패: "+e.message);}
-    setGen(false);
-  };
-
-  const submit=async()=>{
-    const qs=form.questions.filter(q=>q.text.trim());
-    if(!form.title.trim())return alert("평가 제목을 입력해주세요.");
-    if(!qs.length)return alert("문제를 1개 이상 입력해주세요.");
-    for(let i=0;i<qs.length;i++){
-      const q=qs[i];
-      if((q.type||"choice")==="choice"){
-        const filled=(q.choices||[]).map(c=>c.trim());
-        if(filled.filter(c=>c).length<2)return alert(`문제 ${i+1}: 선택지를 2개 이상 입력해주세요.`);
-        if(!filled[q.correct])return alert(`문제 ${i+1}: 정답으로 선택한 항목이 비어 있습니다.`);
-      }
+/* ---------- 학생 화면 ---------- */
+let studentQuiz=null;
+async function loadStudentQuiz(){
+  const body=document.getElementById("studentBody"); const c=getCfg();
+  if(!c.scriptUrl){ body.innerHTML=`<div class="card"><div class="warn">서버 주소가 설정되지 않았어요. 선생님이 안내한 QR/링크로 다시 들어와 주세요.</div></div>`; return; }
+  body.innerHTML=`<div class="loading-note"><span class="spinner dark"></span> 문제를 불러오는 중…</div>`;
+  let code=hashParams().get("code");
+  try{
+    if(!code){ const lc=await apiGet({action:"latestCode"}); code=lc.ok?lc.code:null; }
+    if(!code){ body.innerHTML=`<div class="empty"><div class="big">아직 배포된 문제가 없습니다</div><div>선생님이 문제를 배포하면 나타납니다.</div></div>`; return; }
+    const res=await apiGet({action:"getQuiz",code});
+    if(!res.ok){ body.innerHTML=`<div class="empty"><div class="big">문제를 찾을 수 없어요</div><div>참여 코드(${esc(code)})를 확인해 주세요.</div></div>`; return; }
+    studentQuiz=res.quiz; renderStudentForm();
+  }catch(err){ body.innerHTML=`<div class="card"><div class="errbar">불러오기 실패: ${esc(err.message)}</div></div>`; }
+}
+function renderStudentForm(){ const q=studentQuiz;
+  const items=q.questions.map((it,i)=>{
+    if(it.type==="이단계형"){
+      const t1=`<div class="tiergroup">`+it.options.map((o,oi)=>`<label class="s-opt" onclick="pick(${i},'t1',${oi},this)"><input type="radio" name="q${i}t1" value="${oi}"><span>${esc(o)}</span></label>`).join("")+`</div>`;
+      const t2=`<div class="tiergroup">`+(it.reasons||[]).map((o,oi)=>`<label class="s-opt" onclick="pick(${i},'t2',${oi},this)"><input type="radio" name="q${i}t2" value="${oi}"><span>${esc(o)}</span></label>`).join("")+`</div>`;
+      return `<div class="s-q"><div class="s-qhead"><span class="q-num">${i+1}</span><span class="badge tier">이단계형</span></div>
+        <div class="tier-label t1">1단계 · 어떻게 될까요?</div><div class="q-question">${esc(it.question)}</div>${t1}
+        <div class="tier-label">2단계 · 그렇게 생각한 이유는?</div><div class="q-question" style="font-weight:500">${esc(it.reasonPrompt||"")}</div>${t2}</div>`;
     }
-    // 객관식은 빈 선택지 제거(정답 인덱스 보정)
-    const cleanQs=qs.map(q=>{
-      if((q.type||"choice")!=="choice")return q;
-      const correctText=(q.choices||[])[q.correct];
-      const choices=(q.choices||[]).map(c=>c.trim()).filter(c=>c);
-      const correct=Math.max(0,choices.indexOf((correctText||"").trim()));
-      return{...q,choices,correct};
-    });
-    const cleanForm={...form,questions:cleanQs};
-    const next=editId?asms.map(a=>a.id===editId?{...a,...cleanForm}:a):[{...cleanForm,id:Date.now().toString(),createdAt:new Date().toISOString()},...asms];
-    await onSave(next);setForm(empty);setEditId(null);setFlash(true);setTimeout(()=>setFlash(false),2000);window.scrollTo({top:0,behavior:"smooth"});
-  };
-  const del=async id=>{if(!confirm("삭제하시겠습니까?"))return;await onSave(asms.filter(a=>a.id!==id));};
-  const edit=a=>{setForm({title:a.title,subject:a.subject,school:a.school||"중학교",grade:a.grade,cls:a.cls,questions:(a.questions||[]).map(q=>({...q,choices:[...(q.choices||["","","",""])]}))});setEditId(a.id);window.scrollTo({top:0,behavior:"smooth"});};
-  const copy=a=>{setForm({title:a.title,subject:a.subject,school:a.school||"중학교",grade:a.grade,cls:"",questions:(a.questions||[]).map(q=>({...q,choices:[...(q.choices||["","","",""])],id:Date.now().toString()+Math.random().toString(36).slice(2,6)}))});setEditId(null);window.scrollTo({top:0,behavior:"smooth"});};
-
-  return(
-    <div>
-      <div style={{background:"white",borderRadius:14,padding:24,boxShadow:"0 1px 4px rgba(0,0,0,0.07)",marginBottom:20}}>
-        <h2 style={{margin:"0 0 18px",fontSize:16,fontWeight:700,color:DK}}>{editId?"✏️ 수정":"✨ 새 진단평가 출제"}</h2>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
-          {[["평가 제목 *","title","예: 3학년 – 세포 단원 진단"],["수업/단원 주제","subject","예: 세포의 구조"]].map(([l,k,p])=>(<div key={k}><label style={{fontSize:13,fontWeight:600,color:"#475569",display:"block",marginBottom:5}}>{l}</label><input style={inp} placeholder={p} value={form[k]} onChange={f(k)}/></div>))}
-        </div>
-        <div style={{display:"grid",gridTemplateColumns:"1.2fr 1fr 1fr",gap:12,marginBottom:12}}>
-          <div><label style={{fontSize:13,fontWeight:600,color:"#475569",display:"block",marginBottom:5}}>학교급</label>
-            <select style={inp} value={form.school} onChange={f("school")}>{["초등학교","중학교","고등학교"].map(s=><option key={s} value={s}>{s}</option>)}</select>
-          </div>
-          <div><label style={{fontSize:13,fontWeight:600,color:"#475569",display:"block",marginBottom:5}}>학년</label><input style={inp} placeholder="예: 3" value={form.grade} onChange={f("grade")}/></div>
-          <div><label style={{fontSize:13,fontWeight:600,color:"#475569",display:"block",marginBottom:5}}>반</label><input style={inp} placeholder="예: 2" value={form.cls} onChange={f("cls")}/></div>
-        </div>
-
-        {/* AI 문제 생성 */}
-        <div style={{background:"#EFF6FF",borderRadius:10,padding:14,marginBottom:16,border:"1px solid #DBEAFE"}}>
-          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4,flexWrap:"wrap"}}>
-            <div style={{fontSize:13,fontWeight:700,color:BL}}>🤖 AI 선수학습 진단 문제 자동 생성</div>
-            <span style={{fontSize:10,fontWeight:700,background:resolvedCurriculum==="2022"?"#DBEAFE":"#FEF3C7",color:resolvedCurriculum==="2022"?BL:"#92400E",borderRadius:12,padding:"2px 8px"}}>{resolvedCurriculum} 개정 교육과정 기준</span>
-          </div>
-          <div style={{fontSize:11,color:"#3B82F6",marginBottom:8,lineHeight:1.6}}>새로 배울 단원을 입력하면, 해당 교육과정의 계열성에 따라 그 단원을 배우기 전에 알아야 할 <b>이전 학습 내용</b>을 진단하는 객관식 문제를 만듭니다.</div>
-
-          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,flexWrap:"wrap"}}>
-            <span style={{fontSize:12,fontWeight:600,color:"#475569"}}>교육과정 기준</span>
-            <select value={curMode} onChange={e=>setCurMode(e.target.value)} style={{...inp,width:170,padding:"7px 10px"}}>
-              <option value="auto">자동 (학년 기준)</option>
-              <option value="2022">2022 개정</option>
-              <option value="2015">2015 개정</option>
-            </select>
-            {curMode==="auto"&&<span style={{fontSize:11,color:"#64748B"}}>
-              {gradeNum?<>→ <b style={{color:resolvedCurriculum==="2022"?BL:"#92400E"}}>{resolvedCurriculum} 개정</b> ({form.school} {gradeNum}학년 · {curYear}년 기준)</>:"→ 학년을 입력하면 자동 판별됩니다"}
-            </span>}
-          </div>
-
-          <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
-            <input style={{...inp,flex:1,minWidth:200}} placeholder="새로 배울 단원 (예: 중2 마찰전기)" value={genTopic} onChange={e=>setGenTopic(e.target.value)} onKeyDown={e=>e.key==="Enter"&&!gen&&generate()}/>
-            <select value={genN} onChange={e=>setGenN(Number(e.target.value))} style={{...inp,width:90}}>{[3,4,5,6,8,10].map(n=><option key={n} value={n}>{n}문제</option>)}</select>
-            <button onClick={generate} disabled={gen} style={btn(gen?"#94A3B8":BL,undefined,{whiteSpace:"nowrap",cursor:gen?"not-allowed":"pointer"})}>{gen?"생성 중...":"생성"}</button>
-          </div>
-          <div style={{fontSize:11,color:"#64748B",marginTop:6}}>* 자동 모드는 학교급·학년과 현재 연도로 적용 교육과정을 판별합니다 (중1 2025 · 중2 2026 · 중3 2027부터 2022 개정 적용).</div>
-        </div>
-
-        {/* 문제 목록 */}
-        <label style={{fontSize:13,fontWeight:600,color:"#475569",display:"block",marginBottom:8}}>진단 문제 * <span style={{fontWeight:400,color:"#94A3B8"}}>— AI가 이 문제로 학생 답변을 진단합니다</span></label>
-        {form.questions.map((q,i)=>{const qtype=q.type||"choice";return(
-          <div key={q.id} style={{border:"1px solid #E2E8F0",borderRadius:10,padding:14,marginBottom:10}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-              <div style={{display:"flex",alignItems:"center",gap:8}}>
-                <span style={{fontWeight:700,fontSize:13,color:BL}}>문제 {i+1}</span>
-                <div style={{display:"flex",gap:4}}>
-                  {[["choice","객관식"],["short","서술형"]].map(([tv,tl])=>(
-                    <button key={tv} onClick={()=>setQ(q.id,"type",tv)} style={{padding:"3px 10px",borderRadius:6,fontSize:11,fontWeight:700,cursor:"pointer",border:qtype===tv?`1px solid ${BL}`:"1px solid #E2E8F0",background:qtype===tv?"#EFF6FF":"white",color:qtype===tv?BL:"#64748B"}}>{tl}</button>
-                  ))}
-                </div>
-              </div>
-              <button onClick={()=>delQ(q.id)} style={btn("#FEF2F2","#DC2626",{border:"1px solid #FCA5A5",fontSize:11,padding:"4px 10px"})}>삭제</button>
-            </div>
-            <textarea style={{...inp,height:60,resize:"vertical",marginBottom:8}} placeholder="문제 내용을 입력하세요" value={q.text} onChange={e=>setQ(q.id,"text",e.target.value)}/>
-            <input style={{...inp,marginBottom:8}} placeholder="진단하는 선수학습 개념 (예: 물질의 구성)" value={q.concept} onChange={e=>setQ(q.id,"concept",e.target.value)}/>
-            {qtype==="choice"?(
-              <div>
-                <div style={{fontSize:12,color:"#64748B",marginBottom:6}}>선택지 <span style={{color:"#94A3B8"}}>— 왼쪽 ○를 눌러 정답 표시</span></div>
-                {(q.choices||[]).map((c,ci)=>(
-                  <div key={ci} style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
-                    <button onClick={()=>setQ(q.id,"correct",ci)} title="정답으로 지정" style={{width:26,height:26,borderRadius:"50%",flexShrink:0,cursor:"pointer",border:q.correct===ci?`2px solid #16A34A`:"2px solid #CBD5E1",background:q.correct===ci?"#16A34A":"white",color:"white",fontWeight:900,fontSize:13,display:"flex",alignItems:"center",justifyContent:"center"}}>{q.correct===ci?"✓":""}</button>
-                    <input style={{...inp,background:q.correct===ci?"#F0FDF4":"white"}} placeholder={`선택지 ${ci+1}`} value={c} onChange={e=>setChoice(q.id,ci,e.target.value)}/>
-                    {(q.choices||[]).length>2&&<button onClick={()=>delChoice(q.id,ci)} style={{width:26,height:26,flexShrink:0,borderRadius:6,border:"1px solid #E2E8F0",background:"white",color:"#94A3B8",cursor:"pointer",fontSize:14}}>×</button>}
-                  </div>
-                ))}
-                {(q.choices||[]).length<6&&<button onClick={()=>addChoice(q.id)} style={btn("#F8FAFC",BL,{border:"1px dashed #93C5FD",fontSize:12,padding:"6px 12px",marginTop:2})}>＋ 선택지 추가</button>}
-              </div>
-            ):(
-              <input style={inp} placeholder="모범답안 / 채점 핵심 (AI가 이 기준으로 서술형 답변을 진단)" value={q.answer} onChange={e=>setQ(q.id,"answer",e.target.value)}/>
-            )}
-          </div>
-        );})}
-        <button onClick={addQ} style={btn("#F8FAFC",BL,{border:"1px dashed #93C5FD",width:"100%",marginBottom:16})}>＋ 문제 추가</button>
-
-        <div style={{display:"flex",justifyContent:"flex-end",gap:8}}>
-          {editId&&<button onClick={()=>{setEditId(null);setForm(empty);}} style={btn("white","#64748B",{border:"1px solid #E2E8F0"})}>취소</button>}
-          <button onClick={submit} style={btn(flash?"#10B981":BL)}>{flash?"✓ 저장됨!":editId?"수정 완료":"저장하기"}</button>
-        </div>
-      </div>
-
-      {asms.length>0&&<div>
-        <h3 style={{fontSize:14,fontWeight:700,color:DK,marginBottom:10}}>저장된 진단평가 ({asms.length}개)</h3>
-        {asms.map(a=>(<div key={a.id} style={{background:"white",borderRadius:10,padding:"12px 16px",marginBottom:8,boxShadow:"0 1px 3px rgba(0,0,0,0.06)",display:"flex",alignItems:"center",justifyContent:"space-between",gap:12}}>
-          <div style={{flex:1}}><div style={{fontWeight:700,fontSize:14,color:DK,marginBottom:2}}>{a.title}</div><div style={{fontSize:12,color:"#64748B"}}>{a.subject&&`📚 ${a.subject}  `}{a.school&&`${a.school} `}{a.grade&&`${a.grade}학년 `}{a.cls&&`${a.cls}반  `}• 문제 {(a.questions||[]).length}개</div></div>
-          <div style={{display:"flex",gap:6}}>
-            <button onClick={()=>edit(a)} style={btn("white",BL,{border:`1px solid ${BL}`,fontSize:12,padding:"6px 12px"})}>수정</button>
-            <button onClick={()=>copy(a)} style={btn("#F0FDF4","#15803D",{border:"1px solid #86EFAC",fontSize:12,padding:"6px 12px"})}>📋 복사</button>
-            <button onClick={()=>del(a.id)} style={btn("#FEF2F2","#DC2626",{border:"1px solid #FCA5A5",fontSize:12,padding:"6px 12px"})}>삭제</button>
-          </div>
-        </div>))}
-      </div>}
-    </div>
-  );
+    let input="";
+    if(it.type==="객관식"&&it.options.length){ input=`<div class="tiergroup">`+it.options.map((o,oi)=>`<label class="s-opt" onclick="pick(${i},'t1',${oi},this)"><input type="radio" name="q${i}" value="${oi}"><span>${esc(o)}</span></label>`).join("")+`</div>`; }
+    else if(it.type==="서술형"){ input=`<textarea id="ans-${i}" placeholder="답을 서술하세요"></textarea>`; }
+    else{ input=`<input id="ans-${i}" placeholder="답을 입력하세요">`; }
+    return `<div class="s-q"><div class="s-qhead"><span class="q-num">${i+1}</span><span class="badge">${esc(it.type)}</span></div><div class="q-question">${esc(it.question)}</div>${input}</div>`;
+  }).join("");
+  document.getElementById("studentBody").innerHTML=`
+    <div class="card"><div class="field"><label>학번 <span class="hint">예: 20304</span></label><input id="sid" placeholder="학번을 입력하세요" inputmode="numeric"></div>
+      <div style="margin-top:6px;color:var(--ink-soft);font-size:13px">${esc(q.title)} · 총 ${q.questions.length}문항</div></div>
+    ${items}<button class="btn btn-primary btn-lg" id="submitBtn" onclick="submitAnswers()">제출하기</button><div id="submitMsg"></div>`;
+  window.__sel={};
+}
+function pick(qi,tier,oi,el){ window.__sel[qi]=window.__sel[qi]||{}; window.__sel[qi][tier]=oi;
+  const grp=el.closest(".tiergroup")||el.parentNode; grp.querySelectorAll(".s-opt").forEach(x=>x.classList.remove("sel")); el.classList.add("sel"); }
+function sanitizeId(s){ return (s||"").trim().replace(/[\s\/\\'"]+/g,"").replace(/[^0-9A-Za-z가-힣_-]/g,""); }
+async function submitAnswers(){
+  const sid=sanitizeId(document.getElementById("sid").value), msg=document.getElementById("submitMsg");
+  if(!sid){ msg.innerHTML=`<div class="warn">학번을 입력해 주세요.</div>`; return; }
+  const answers=studentQuiz.questions.map((it,i)=>{ const s=window.__sel[i]||{};
+    if(it.type==="이단계형") return {qIndex:i,type:it.type,selectedIndex:(s.t1!=null?s.t1:-1),reasonIndex:(s.t2!=null?s.t2:-1),text:""};
+    if(it.type==="객관식"&&it.options.length) return {qIndex:i,type:it.type,selectedIndex:(s.t1!=null?s.t1:-1),reasonIndex:-1,text:s.t1!=null?it.options[s.t1]:""};
+    const el=document.getElementById("ans-"+i); return {qIndex:i,type:it.type,selectedIndex:-1,reasonIndex:-1,text:el?el.value.trim():""}; });
+  const btn=document.getElementById("submitBtn"); btn.disabled=true; btn.innerHTML=`<span class="spinner"></span> 제출 중…`;
+  try{ const res=await apiPost({action:"submit",code:studentQuiz.code,studentId:sid,answers}); if(!res.ok) throw new Error(res.error||"서버 오류");
+    document.getElementById("studentBody").innerHTML=`<div class="card done-card"><div class="check">✓</div><h2 style="margin:0 0 6px;font-size:20px">제출 완료</h2>
+      <p style="color:var(--ink-soft);margin:0 0 16px">학번 <b>${esc(sid)}</b> · ${studentQuiz.questions.length}문항 제출됨</p>
+      <button class="btn btn-ghost" onclick="renderStudentForm()">다시 풀기 / 수정 제출</button></div>`;
+  }catch(err){ btn.disabled=false; btn.textContent="제출하기"; msg.innerHTML=`<div class="errbar">제출 실패: ${esc(err.message)}</div>`; }
 }
 
-// ── QR 탭 ─────────────────────────────────────────────────
-function QRTab({asms}){
-  const [selId,setSelId]=useState(null);
-  const sel=asms.find(a=>a.id===selId);
-  const base=window.location.href.split(/[#?]/)[0];
-  const stuUrl=selId?`${base}?id=${selId}`:"";
-  return(
-    <div>
-      <p style={{color:"#64748B",fontSize:14,marginTop:0,marginBottom:16}}>진단평가를 클릭하면 QR코드가 바로 생성됩니다.</p>
-      {asms.length===0?<Empty icon="📝" text="먼저 출제 탭에서 진단평가를 생성해주세요."/>:(
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(190px,1fr))",gap:10,marginBottom:24}}>
-          {asms.map(a=>(<div key={a.id} onClick={()=>setSelId(a.id)} style={{background:"white",borderRadius:12,padding:16,cursor:"pointer",border:selId===a.id?`2px solid ${BL}`:"2px solid transparent",boxShadow:"0 1px 4px rgba(0,0,0,0.07)",transition:"all 0.15s"}}>
-            <div style={{fontSize:26,marginBottom:8}}>🩺</div>
-            <div style={{fontWeight:700,fontSize:13,color:DK,marginBottom:3,lineHeight:1.4}}>{a.title}</div>
-            <div style={{fontSize:11,color:"#94A3B8",marginBottom:6}}>{a.grade&&`${a.grade}학년 `}{a.cls&&`${a.cls}반`} · 문제 {(a.questions||[]).length}개</div>
-            <div style={{fontSize:11,background:"#EFF6FF",color:BL,borderRadius:5,padding:"2px 7px",display:"inline-block",fontWeight:700,letterSpacing:1}}>#{shortCode(a.id)}</div>
-          </div>))}
-        </div>
-      )}
-      {sel&&(
-        <div style={{background:"white",borderRadius:14,padding:28,boxShadow:"0 1px 4px rgba(0,0,0,0.07)",display:"flex",flexDirection:"column",alignItems:"center"}}>
-          <h3 style={{margin:"0 0 4px",fontSize:17,fontWeight:700,color:DK}}>{sel.title}</h3>
-          {sel.subject&&<p style={{color:"#64748B",fontSize:13,margin:"0 0 4px"}}>📚 {sel.subject}</p>}
-          <p style={{color:"#94A3B8",fontSize:12,margin:"0 0 20px"}}>QR코드를 학생들에게 보여주세요</p>
-          <div style={{padding:10,border:"1px solid #E2E8F0",borderRadius:10,background:"white"}}><QRImage url={stuUrl}/></div>
-          <div style={{marginTop:16,background:"#EFF6FF",borderRadius:10,padding:"12px 24px",textAlign:"center"}}>
-            <div style={{fontSize:11,color:"#64748B",marginBottom:3}}>QR이 안 될 경우 — 학생 입장 코드</div>
-            <div style={{fontSize:26,fontWeight:900,color:BL,letterSpacing:4}}>#{shortCode(sel.id)}</div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── 진단결과 탭 ────────────────────────────────────────────
-function ResultsTab({asms, uid}){
-  const [selId,setSelId]=useState("");
-  const [results,setResults]=useState([]);
-  const [expand,setExpand]=useState({});
-  useEffect(()=>{if(!selId)return;const load=()=>DB.getR(uid, selId).then(setResults);load();const iv=setInterval(load,4000);return()=>clearInterval(iv);},[selId, uid]);
-  const asm=asms.find(a=>a.id===selId);
-  const questions=asm?.questions||[];
-  const sorted=[...results].sort((a,b)=>a.studentId.localeCompare(b.studentId));
-
-  // 개념별 취약점 집계
-  const answered=a=>a&&(a.selected!=null||(a.response&&a.response.trim()));
-  const conceptStats=questions.map((q,qi)=>{
-    const c={도달:0,부분도달:0,미도달:0,미응답:0};
-    sorted.forEach(r=>{
-      const a=(r.answers||[]).find(x=>x.questionId===q.id);
-      if(!answered(a))c.미응답++;
-      else c[a.level]=(c[a.level]||0)+1;
-    });
-    return {q,qi,c,total:sorted.length};
+/* ---------- 채점 & 오개념 집계 ---------- */
+function normText(s){ return (s||"").toString().trim().toLowerCase().replace(/[①-⑨]/g,"").replace(/^[0-9]+[.)]\s*/,"").replace(/\s+/g,"").replace(/[.,!?·、。]/g,""); }
+function reasonCorrectIdx(q){ return Array.isArray(q.reasonMap)?q.reasonMap.findIndex(m=>m==="correct"):-1; }
+function gradeSubmission(key, sub){
+  const mcHeld={};
+  const marks=key.questions.map((q,i)=>{
+    const a=(sub.answers||[]).find(x=>x.qIndex===i);
+    if(q.type==="이단계형"){
+      const t1=a?a.selectedIndex:-1, t2=(a&&a.reasonIndex!=null)?a.reasonIndex:-1;
+      if(t1<0||t2<0) return "N";
+      const c1=idxByText(q.options,q.answer);
+      const m2=Array.isArray(q.reasonMap)?q.reasonMap[t2]:null;
+      if(m2&&m2!=="correct") mcHeld[m2]=(mcHeld[m2]||0)+1;
+      return (t1===c1 && m2==="correct") ? "O" : "X";
+    }
+    if(q.type==="서술형") return "R";
+    if(q.type==="객관식"&&(q.options||[]).length){
+      if(!a||a.selectedIndex<0) return "N";
+      const m=Array.isArray(q.optionMap)?q.optionMap[a.selectedIndex]:null;
+      if(m==="correct") return "O";
+      if(m){ mcHeld[m]=(mcHeld[m]||0)+1; return "X"; }
+      const ci=idxByText(q.options,q.answer); return (ci>=0&&a.selectedIndex===ci)?"O":"X";
+    }
+    if(!a||!a.text) return "N";
+    const na=normText(q.answer), ns=normText(a.text); if(!na) return "R";
+    return (ns===na||(na.length>=2&&ns.includes(na)))?"O":"X";
   });
-
-  const download=()=>{
-    if(!asm)return;
-    // 시트1: 학생별 요약 (wide)
-    const wide=sorted.map(r=>{
-      const row={"학번":r.studentId,"평균이해도":Math.round(r.avgScore||0)+"%","제출":r.submitted?"제출":"진행중"};
-      questions.forEach((q,i)=>{const a=(r.answers||[]).find(x=>x.questionId===q.id);row[`Q${i+1}`]=a?a.level:"미응답";});
-      return row;
-    });
-    // 시트2: 상세 (long)
-    const long=[];
-    sorted.forEach(r=>{
-      questions.forEach((q,i)=>{
-        const a=(r.answers||[]).find(x=>x.questionId===q.id);
-        const isChoice=(q.type||"choice")==="choice";
-        const oX=isChoice&&a&&a.selected!=null?(a.selected===q.correct?"O":"X"):"";
-        long.push({"학번":r.studentId,"문제번호":`Q${i+1}`,"유형":isChoice?"객관식":"서술형","진단개념":q.concept||"","문제":q.text,"학생답변":a?.response||"","정오":oX,"진단수준":a?.level||"미응답","이해도":a?a.score+"%":"","진단":a?.diagnosis||"","해설":a?.explanation||""});
-      });
-    });
-    const wb=XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(wide),"학생별요약");
-    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(long),"상세진단");
-    XLSX.writeFile(wb,`${asm.title}_진단결과.xlsx`);
-  };
-
-  const toggle=k=>setExpand(p=>({...p,[k]:!p[k]}));
-
-  return(
-    <div>
-      <div style={{display:"flex",gap:10,marginBottom:18,alignItems:"center",flexWrap:"wrap"}}>
-        <select value={selId} onChange={e=>{setSelId(e.target.value);setExpand({});}} style={{flex:1,minWidth:200,padding:"10px 12px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:13,outline:"none"}}>
-          <option value="">📋 진단평가를 선택하세요</option>
-          {asms.map(a=><option key={a.id} value={a.id}>{a.title}</option>)}
-        </select>
-        {selId&&<div style={{display:"flex",alignItems:"center",gap:8}}>
-          <span style={{fontSize:11,color:"#94A3B8"}}>● 4초마다 자동갱신</span>
-          <button onClick={download} style={btn("#059669",undefined,{fontSize:13,padding:"9px 16px",whiteSpace:"nowrap"})}>⬇ 엑셀 다운로드</button>
-        </div>}
-      </div>
-
-      {selId&&sorted.length===0&&<Empty icon="⏳" text="아직 참여한 학생이 없습니다."/>}
-
-      {/* 개념별 취약점 분석 */}
-      {selId&&sorted.length>0&&(
-        <div style={{background:"white",borderRadius:14,padding:20,boxShadow:"0 1px 4px rgba(0,0,0,0.07)",marginBottom:16}}>
-          <h3 style={{fontSize:14,fontWeight:800,color:DK,margin:"0 0 14px"}}>🔍 개념별 진단 분석 <span style={{fontWeight:400,color:"#94A3B8",fontSize:12}}>(참여 {sorted.length}명)</span></h3>
-          {conceptStats.map(({q,qi,c,total})=>{
-            const pct=v=>total?Math.round(v/total*100):0;
-            return(
-              <div key={q.id} style={{marginBottom:14}}>
-                <div style={{fontSize:13,fontWeight:600,color:DK,marginBottom:5}}>Q{qi+1}. {q.concept||q.text.slice(0,30)}</div>
-                <div style={{display:"flex",height:24,borderRadius:6,overflow:"hidden",fontSize:11,fontWeight:700}}>
-                  {["도달","부분도달","미도달","미응답"].map(lv=>c[lv]>0&&(
-                    <div key={lv} title={`${lv} ${c[lv]}명`} style={{width:`${pct(c[lv])}%`,background:LV[lv].bg,color:LV[lv].fg,display:"flex",alignItems:"center",justifyContent:"center",minWidth:c[lv]>0?26:0}}>{c[lv]}</div>
-                  ))}
-                </div>
-                {c["미도달"]/total>=0.4&&<div style={{fontSize:11,color:"#B91C1C",marginTop:4,fontWeight:600}}>⚠️ 미도달 비율이 높습니다 — 재지도 권장</div>}
-              </div>
-            );
-          })}
-          <div style={{display:"flex",gap:12,marginTop:10,flexWrap:"wrap"}}>
-            {["도달","부분도달","미도달","미응답"].map(lv=><div key={lv} style={{display:"flex",alignItems:"center",gap:5,fontSize:11,color:"#64748B"}}><span style={{width:12,height:12,borderRadius:3,background:LV[lv].bg,border:`1px solid ${LV[lv].bd}`}}/>{lv}</div>)}
-          </div>
-        </div>
-      )}
-
-      {/* 학생별 결과 */}
-      {sorted.length>0&&(
-        <div style={{background:"white",borderRadius:14,overflow:"auto",boxShadow:"0 1px 4px rgba(0,0,0,0.07)"}}>
-          <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
-            <thead><tr style={{background:"#F8FAFC"}}>
-              <th style={{padding:"11px 13px",textAlign:"left",fontWeight:600,color:"#475569",borderBottom:"1px solid #E2E8F0",whiteSpace:"nowrap"}}>학번</th>
-              <th style={{padding:"11px 13px",textAlign:"center",fontWeight:600,color:"#475569",borderBottom:"1px solid #E2E8F0",whiteSpace:"nowrap"}}>평균이해도</th>
-              {questions.map((q,i)=><th key={q.id} style={{padding:"11px 8px",textAlign:"center",fontWeight:600,color:"#475569",borderBottom:"1px solid #E2E8F0",whiteSpace:"nowrap"}}>Q{i+1}</th>)}
-              <th style={{padding:"11px 13px",textAlign:"center",fontWeight:600,color:"#475569",borderBottom:"1px solid #E2E8F0"}}></th>
-            </tr></thead>
-            <tbody>
-              {sorted.map((r,ri)=>{
-                const open=expand[r.studentId];
-                return(<React.Fragment key={r.studentId}>
-                  <tr style={{borderBottom:open?"none":"1px solid #E2E8F0",background:ri%2===0?"white":"#FAFBFC"}}>
-                    <td style={{padding:"12px 13px",fontWeight:700,color:DK,whiteSpace:"nowrap"}}>{r.studentId}</td>
-                    <td style={{padding:"12px 13px",textAlign:"center"}}>{r.submitted?<span style={{background:"#DBEAFE",color:BL,padding:"3px 10px",borderRadius:20,fontWeight:700}}>{Math.round(r.avgScore||0)}%</span>:<span style={{color:"#94A3B8",fontSize:12}}>진행중</span>}</td>
-                    {questions.map(q=>{const a=(r.answers||[]).find(x=>x.questionId===q.id);const lv=answered(a)?a.level:"미응답";return<td key={q.id} style={{padding:"10px 6px",textAlign:"center"}}><LevelBadge level={lv} small/></td>;})}
-                    <td style={{padding:"12px 13px",textAlign:"center"}}><button onClick={()=>toggle(r.studentId)} style={{fontSize:11,color:BL,background:"none",border:"none",cursor:"pointer",fontWeight:600,whiteSpace:"nowrap"}}>{open?"▲ 접기":"▼ 상세"}</button></td>
-                  </tr>
-                  {open&&(
-                    <tr style={{borderBottom:"1px solid #E2E8F0",background:"#F8FAFC"}}>
-                      <td colSpan={questions.length+3} style={{padding:"6px 16px 16px"}}>
-                        {questions.map((q,i)=>{const a=(r.answers||[]).find(x=>x.questionId===q.id);return(
-                          <div key={q.id} style={{background:"white",borderRadius:8,padding:12,marginTop:8,border:"1px solid #E2E8F0"}}>
-                            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,marginBottom:6}}>
-                              <span style={{fontWeight:700,fontSize:12,color:DK}}>Q{i+1}. {q.text}</span>
-                              <LevelBadge level={answered(a)?a.level:"미응답"} small/>
-                            </div>
-                            <div style={{fontSize:12,color:"#334155",marginBottom:4}}><b style={{color:BL}}>답변:</b> {a?.response||<span style={{color:"#CBD5E1"}}>미응답</span>}</div>
-                            {a?.diagnosis&&<div style={{fontSize:12,color:"#475569",background:"#F8FAFC",borderRadius:6,padding:"6px 9px"}}>🩺 {a.diagnosis}</div>}
-                          </div>
-                        );})}
-                      </td>
-                    </tr>
-                  )}
-                </React.Fragment>);
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  );
+  return {marks,mcHeld};
+}
+function relatedQs(key,id){ return key.questions.map((q,i)=>{ const ids=[].concat(q.reasonMap||[],q.optionMap||[]); return ids.includes(id)?(i+1):null; }).filter(Boolean); }
+function loadAnswerKey(){
+  if(state.questions.length&&state.questions.some(q=>q.answer||q.reasonMap.length||q.optionMap.length)) return {questions:state.questions,misconceptions:state.misconceptions};
+  let code=state.activeCode||localStorage.getItem("assess_active"); if(!code) return null; state.activeCode=code;
+  try{ const raw=localStorage.getItem("assess_key_"+code); if(!raw) return null; const p=JSON.parse(raw);
+    return Array.isArray(p)?{questions:p.map(normalize),misconceptions:[]}:{questions:(p.questions||[]).map(normalize),misconceptions:p.misconceptions||[]}; }catch(e){ return null; }
 }
 
-function StudentEnterTab({asms}){
-  const [code,setCode]=useState("");const [err,setErr]=useState("");
-  const enter=()=>{
-    const c=code.replace("#","").trim().toUpperCase();
-    if(!c)return;
-    const found=asms.find(a=>shortCode(a.id)===c);
-    if(!found){setErr("코드를 찾을 수 없습니다.");return;}
-    window.location.search=`?id=${found.id}`;
-  };
-  return(
-    <div style={{maxWidth:380,margin:"50px auto",textAlign:"center"}}>
-      <div style={{fontSize:44,marginBottom:12}}>🎓</div>
-      <h2 style={{margin:"0 0 6px",fontSize:20,fontWeight:800,color:DK}}>학생 입장</h2>
-      <p style={{color:"#64748B",fontSize:13,margin:"0 0 28px"}}>선생님이 알려주신 입장 코드를 입력하세요</p>
-      <input value={code} onChange={e=>{setCode(e.target.value.toUpperCase());setErr("");}} onKeyDown={e=>e.key==="Enter"&&enter()} placeholder="A3F2B1" maxLength={6}
-        style={{...inp,fontSize:26,textAlign:"center",fontWeight:900,letterSpacing:5,padding:"14px",borderRadius:10,borderColor:err?"#FCA5A5":"#E2E8F0"}}/>
-      {err&&<div style={{color:"#DC2626",fontSize:12,marginTop:6}}>{err}</div>}
-      <button onClick={enter} style={btn(BL,undefined,{width:"100%",padding:"13px",fontSize:15,marginTop:12,borderRadius:10})}>입장하기</button>
-    </div>
-  );
+let lastGrade=null;
+async function renderResults(){
+  const area=document.getElementById("resultArea");
+  const key=loadAnswerKey();
+  if(!key||!key.questions.length){ area.innerHTML=`<div class="empty"><div class="big">확인할 결과가 없습니다</div><div>문항을 만들어 <b>QR 코드 생성</b>으로 배포하면 오개념 현황이 모입니다.</div></div>`; return; }
+  const code=state.activeCode;
+  area.innerHTML=`<div class="loading-note"><span class="spinner dark"></span> 제출 결과를 불러오는 중…</div>`;
+  let subs=[];
+  try{ const res=await apiGet({action:"getResults",code}); subs=res.ok?(res.submissions||[]):[]; }
+  catch(err){ area.innerHTML=`<div class="errbar">결과 불러오기 실패: ${esc(err.message)}</div>`; return; }
+  subs.sort((a,b)=>(a.studentId>b.studentId?1:-1));
+  const qCount=key.questions.length;
+  const rows=subs.map(s=>{ const g=gradeSubmission(key,s);
+    const gradable=g.marks.filter(m=>m==="O"||m==="X"||m==="N").length, correct=g.marks.filter(m=>m==="O").length;
+    const mcNames=Object.keys(g.mcHeld).map(id=>mcNameFrom(key,id));
+    return {studentId:s.studentId,time:fmtTime(s.submittedAt),marks:g.marks,mcHeld:g.mcHeld,mcNames,gradable,correct,rate:gradable?Math.round(correct/gradable*100):0}; });
+  const mcStats=key.misconceptions.map(mc=>{ const withIt=rows.filter(r=>r.mcHeld[mc.id]).length;
+    return {id:mc.id,name:mc.name,description:mc.description,count:withIt,pct:rows.length?Math.round(withIt/rows.length*100):0,qNums:relatedQs(key,mc.id)}; }).sort((a,b)=>b.count-a.count);
+  const perQ=key.questions.map((q,i)=>{ const ms=rows.map(r=>r.marks[i]); const g=ms.filter(m=>m==="O"||m==="X"||m==="N").length,o=ms.filter(m=>m==="O").length; return {o,g,rate:g?Math.round(o/g*100):null}; });
+  lastGrade={rows,mcStats,perQ,qCount,key,code};
+
+  if(subs.length===0){ area.innerHTML=resultHeader(code,0,qCount,key.misconceptions.length)+`<div class="empty"><div class="big">아직 제출한 학생이 없습니다</div><div>학생이 제출하면 <b>새로고침</b>을 눌러 확인하세요.</div></div>`; return; }
+
+  const mcRows=mcStats.map(m=>`<tr><td class="sid">${esc(m.id)}</td><td class="mcname">${esc(m.name)}<div style="font-weight:400;color:var(--ink-faint);font-size:12px">${esc(m.description)}</div></td>
+    <td><b>${m.count}</b>명</td><td>${m.pct}%<div class="barwrap"><span class="bar" style="width:${m.pct}%"></span></div></td><td>${m.qNums.join(", ")||"—"}</td></tr>`).join("");
+  const mcTable=key.misconceptions.length?`<div class="h3row"><h2>🧠 오개념 현황 <span style="color:var(--ink-faint);font-weight:600;font-size:13px">보유 학생 많은 순</span></h2></div>
+    <div class="tablewrap"><table><thead><tr><th>ID</th><th>오개념</th><th>보유 학생</th><th>비율</th><th>관련 문항</th></tr></thead><tbody>${mcRows}</tbody></table></div>`:"";
+
+  const headCells=`<th>학번</th><th>제출시각</th>${key.questions.map((q,i)=>`<th>${i+1}번<div class="qrate">${perQ[i].rate!=null?perQ[i].rate+"%":"검토"}</div></th>`).join("")}<th>정답수</th><th>보유 오개념</th>`;
+  const bodyRows=rows.map(r=>`<tr><td class="sid">${esc(r.studentId)}</td><td>${esc(r.time)}</td>${r.marks.map(m=>`<td>${markCell(m)}</td>`).join("")}
+    <td><b>${r.correct}/${r.gradable}</b></td><td class="mcname" style="font-size:12px">${r.mcNames.length?esc(r.mcNames.join(", ")):"<span style='color:var(--ink-faint)'>—</span>"}</td></tr>`).join("");
+  const stTable=`<div class="h3row"><h2>👩‍🎓 학생별 응답</h2></div><div class="tablewrap"><table><thead><tr>${headCells}</tr></thead><tbody>${bodyRows}</tbody></table></div>
+    <div class="warn" style="margin-top:14px">O 올바른 이해(1·2단계 모두 정답) · X 오답(2단계 이유에 오개념 반영) · <span class="mark-n">·</span> 미응답. 오개념은 2단계 '이유' 선택으로 진단됩니다.</div>`;
+
+  area.innerHTML=resultHeader(code,subs.length,qCount,key.misconceptions.length)+mcTable+stTable;
+}
+function mcNameFrom(key,id){ const m=(key.misconceptions||[]).find(x=>x.id===id); return m?m.name:id; }
+function resultHeader(code,n,qc,mc){
+  const topMc=lastGrade&&lastGrade.mcStats&&lastGrade.mcStats.length&&lastGrade.mcStats[0].count?lastGrade.mcStats[0].name:"—";
+  return `<div class="card" style="margin-bottom:8px"><div class="h3row" style="margin:0 0 16px"><h2>오개념 진단 결과 <span class="codepill" style="font-size:14px;padding:4px 10px;margin-left:8px">코드 ${code||"—"}</span></h2>
+      <div class="qr-actions no-print" style="margin:0"><button class="btn btn-ghost" onclick="renderResults()">새로고침</button><button class="btn btn-primary" onclick="downloadExcel()">엑셀 다운로드</button></div></div>
+    <div class="stats"><div class="stat"><div class="n">${n}</div><div class="l">제출 인원</div></div>
+      <div class="stat"><div class="n">${mc}</div><div class="l">진단 오개념</div></div>
+      <div class="stat"><div class="n" style="font-size:15px;padding-top:6px">${esc(topMc)}</div><div class="l">가장 흔한 오개념</div></div></div></div>`;
+}
+function markCell(m){ if(m==="O")return `<span class="mark-o">O</span>`; if(m==="X")return `<span class="mark-x">X</span>`; if(m==="R")return `<span class="mark-r">검토</span>`; return `<span class="mark-n">·</span>`; }
+function fmtTime(iso){ try{ const d=new Date(iso); return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`; }catch(e){ return ""; } }
+
+/* ---------- 엑셀 ---------- */
+function downloadExcel(){
+  if(!lastGrade||!lastGrade.rows.length){ toast("다운로드할 제출 결과가 없어요"); return; }
+  const {rows,mcStats,perQ,qCount,key,code}=lastGrade; const title=val("unit")||"오개념진단";
+  const h1=["학번","제출시각",...Array.from({length:qCount},(_,i)=>`${i+1}번`),"정답수","보유 오개념"];
+  const a1=[h1]; rows.forEach(r=>a1.push([r.studentId,r.time,...r.marks.map(m=>({O:"O",X:"X",R:"검토",N:"미응답"}[m])),r.correct,r.mcNames.join(", ")]));
+  const a2=[["ID","오개념","설명","보유 학생 수","비율(%)","관련 문항"]]; mcStats.forEach(m=>a2.push([m.id,m.name,m.description,m.count,m.pct,m.qNums.join(", ")]));
+  const a3=[["문항","정답률(%)","정답 인원","응답 인원"]]; key.questions.forEach((q,i)=>a3.push([`${i+1}번`,perQ[i].rate!=null?perQ[i].rate:"검토",perQ[i].o,perQ[i].g]));
+  if(typeof XLSX==="undefined"){ const csv="\uFEFF"+a1.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(",")).join("\n");
+    const b=new Blob([csv],{type:"text/csv"}),u=URL.createObjectURL(b),a=document.createElement("a"); a.href=u;a.download=`오개념진단_${title}.csv`;a.click();URL.revokeObjectURL(u); toast("CSV로 내려받았어요"); return; }
+  const wb=XLSX.utils.book_new();
+  const w1=XLSX.utils.aoa_to_sheet(a1); w1["!cols"]=h1.map((_,i)=>({wch:i===h1.length-1?28:9})); XLSX.utils.book_append_sheet(wb,w1,"학생별 결과");
+  const w2=XLSX.utils.aoa_to_sheet(a2); w2["!cols"]=[{wch:6},{wch:20},{wch:40},{wch:12},{wch:9},{wch:12}]; XLSX.utils.book_append_sheet(wb,w2,"오개념 현황");
+  const w3=XLSX.utils.aoa_to_sheet(a3); w3["!cols"]=[{wch:7},{wch:10},{wch:9},{wch:9}]; XLSX.utils.book_append_sheet(wb,w3,"문항별 정답률");
+  XLSX.writeFile(wb,`오개념진단_${title}_${code||""}.xlsx`); toast("엑셀 파일을 내려받았어요");
 }
 
-// ══════════════════════════════════════════════════════════
-// 학생 페이지 (진단평가 진행)
-// ══════════════════════════════════════════════════════════
-function StudentPage({asmId, ownerUid}){
-  const [asm,setAsm]=useState(null);const [ready,setReady]=useState(false);
-  const [sid,setSid]=useState("");const [confirmed,setConfirmed]=useState("");
-  const [idx,setIdx]=useState(0);
-  const [answers,setAnswers]=useState([]); // [{questionId, response, level, score, diagnosis, explanation}]
-  const [input,setInput]=useState("");
-  const [selected,setSelected]=useState(null);
-  const [loading,setLoading]=useState(false);
-  const [phase,setPhase]=useState("intro"); // intro | answering | done
-  const [saveStatus,setSaveStatus]=useState("");
-  const [lang,setLang]=useState("ko");
-  const [qTrans,setQTrans]=useState({});   // {questionId:{text,concept,choices}}
-  const [transReady,setTransReady]=useState(false);
+/* ---------- 유틸 ---------- */
+function setGenLoading(on,label){ const btn=document.getElementById("genBtn"); btn.disabled=on;
+  if(on){ btn.innerHTML=`<span class="spinner"></span><span>${label||"오개념 분석 · 문항 생성 중…"}</span>`;
+    if(state.questions.length===0) document.getElementById("qArea").innerHTML=`<div class="loading-note"><span class="spinner dark"></span> AI가 오개념을 분석하고 이단계 진단 문항을 만드는 중이에요…</div>`;
+  }else{ btn.innerHTML=`<span id="genLabel">오개념 분석 · 이단계 문항 생성</span>`; } }
+function showError(msg){ document.getElementById("genError").innerHTML=msg?`<div class="errbar">${esc(msg)}</div>`:""; }
+function copyText(t){ navigator.clipboard.writeText(t).then(()=>toast("복사했어요"),()=>toast("복사 실패")); }
+let toastT;
+function toast(m){ let el=document.getElementById("__toast");
+  if(!el){ el=document.createElement("div"); el.id="__toast"; el.style.cssText="position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:22px;font-size:13.5px;font-weight:600;z-index:99;box-shadow:0 6px 20px rgba(0,0,0,.18);transition:opacity .2s"; document.body.appendChild(el); }
+  el.textContent=m; el.style.opacity="1"; clearTimeout(toastT); toastT=setTimeout(()=>el.style.opacity="0",1800); }
 
-  const questions=asm?.questions||[];
-  const t=T[lang]||T.ko;
-  const mc=k=>(MC[k]&&(MC[k][lang]||MC[k].ko))||"";
-  const qText=q=>(qTrans[q.id]&&qTrans[q.id].text)||q.text;
-  const qConcept=q=>(qTrans[q.id]&&qTrans[q.id].concept)||q.concept;
-  const qChoices=q=>{const tr=qTrans[q.id]&&qTrans[q.id].choices;const orig=q.choices||[];return(Array.isArray(tr)&&tr.length===orig.length&&orig.length)?tr:orig;};
-
-  useEffect(()=>{DB.findAssessment(asmId).then(a=>{setAsm(a);setReady(true);});},[asmId]);
-  useEffect(()=>{
-    if(!confirmed||!asmId||!ownerUid)return;
-    DB.getR(ownerUid, asmId).then(results=>{
-      const ex=results.find(r=>r.studentId===confirmed);
-      if(ex){
-        setAnswers(ex.answers||[]);
-        if(ex.submitted){setPhase("done");}
-        else{setIdx(Math.min((ex.answers||[]).length,(asm?.questions||[]).length-1));setPhase("answering");}
-      }else{setPhase("answering");}
-    });
-  },[confirmed,asmId,ownerUid]);
-
-  // 학생이 언어 선택 후 입장하면 문제를 해당 언어로 1회 배치 번역
-  useEffect(()=>{
-    if(!confirmed||!asm)return;
-    const qs=asm.questions||[];
-    if(lang==="ko"||!qs.length){setTransReady(true);return;}
-    let alive=true;
-    setTransReady(false);
-    (async()=>{
-      try{
-        const sys=`다음 진단평가 문제들을 ${t.aiLang}(으)로 자연스럽고 정확하게 번역하세요. 전문 용어/과학 개념은 해당 언어의 표준 용어로 번역합니다. 각 항목의 id는 그대로 두고 text, concept, choices를 번역하세요. choices는 순서와 개수를 절대 바꾸지 말고 각 항목을 그 자리에서 번역만 하세요. 반드시 JSON 배열만 출력하고 다른 텍스트는 쓰지 마세요.
-형식: [{"id":"...","text":"번역된 문제","concept":"번역된 개념","choices":["번역된 선택지1","번역된 선택지2"]}]`;
-        const payload=qs.map(q=>({id:q.id,text:q.text,concept:q.concept||"",choices:(q.type||"choice")==="choice"?(q.choices||[]):undefined}));
-        const raw=await askAI([{role:"user",parts:[{text:JSON.stringify(payload)}]}],sys,3000);
-        const arr=extractJSON(raw);
-        const map={};
-        if(Array.isArray(arr))arr.forEach(x=>{if(x&&x.id)map[x.id]={text:x.text||"",concept:x.concept||"",choices:Array.isArray(x.choices)?x.choices.map(String):undefined};});
-        if(alive)setQTrans(map);
-      }catch(e){console.error("문제 번역 실패:",e);}
-      if(alive)setTransReady(true);
-    })();
-    return()=>{alive=false;};
-  },[confirmed,lang,asm]);
-
-  const avg=arr=>{const scored=arr.filter(a=>a.response&&typeof a.score==="number");return scored.length?scored.reduce((s,a)=>s+a.score,0)/scored.length:0;};
-
-  const persist=async(ansArr,submitted)=>{
-    const entry={studentId:confirmed,answers:ansArr,avgScore:avg(ansArr),submitted,lang,updatedAt:new Date().toISOString()};
-    setSaveStatus("saving");
-    for(let attempt=1;attempt<=3;attempt++){
-      try{await DB.setROne(ownerUid, asmId, entry);setSaveStatus("saved");setTimeout(()=>setSaveStatus(""),2000);return;}
-      catch(e){console.error(`저장 시도 ${attempt} 실패:`,e);if(attempt<3)await new Promise(r=>setTimeout(r,500*attempt));}
-    }
-    setSaveStatus("error");
-  };
-
-  const evaluate=async(q,response)=>{
-    const sys=`당신은 ${asm?.grade||"중학교"} ${asm?.subject||"과학"} 진단평가 채점 AI입니다.
-학생의 답변을 모범답안·핵심개념과 비교하여 이해 수준을 진단합니다.
-
-[문제] ${q.text}
-[진단하려는 핵심 개념] ${q.concept||"(미지정)"}
-[모범답안/채점 핵심] ${q.answer||"(교사 미입력 — 문제와 개념을 기준으로 상식적으로 판단)"}
-
-[진단 수준]
-- 도달: 핵심 개념을 정확히 이해함 (score 80~100)
-- 부분도달: 부분적으로 이해했으나 오개념·불완전함 있음 (score 40~79)
-- 미도달: 이해하지 못했거나 무응답/오답 (score 0~39)
-
-[규칙]
-- 학생 수준에 맞게 진단합니다.
-- 무응답, "모르겠다", 문제와 무관한 답은 미도달·score 0.
-- diagnosis: 학생 답변의 잘한 점과 부족한 점을 구체적으로 1~2문장.
-- explanation: 이 개념을 학생이 이해할 수 있도록 쉽게 설명(복습 자료 역할, 2~3문장).
-- ★언어 규칙★ diagnosis와 explanation은 반드시 ${t.aiLang}(으)로 작성하세요. 단, level 값은 반드시 "도달"/"부분도달"/"미도달" 중 하나로 한국어 원문 그대로 출력하세요 (번역 금지).
-- 반드시 JSON만 출력. 다른 텍스트 금지.
-
-[응답 형식]
-{"level":"도달|부분도달|미도달","score":0~100 정수,"diagnosis":"...","explanation":"..."}`;
-    const raw=await askAI([{role:"user",parts:[{text:`학생 답변: ${response}`}]}],sys,900);
-    let parsed;try{parsed=extractJSON(raw)||{level:"미도달",score:0,diagnosis:raw,explanation:""};}catch{parsed={level:"미도달",score:0,diagnosis:raw,explanation:""};}
-    let s=parseInt(parsed.score);if(isNaN(s)||s<0)s=0;if(s>100)s=100;parsed.score=s;
-    if(!["도달","부분도달","미도달"].includes(parsed.level))parsed.level=s>=80?"도달":s>=40?"부분도달":"미도달";
-    return parsed;
-  };
-
-  // 객관식 개념 해설 생성 (채점은 결정적으로, 해설만 AI)
-  const explainMC=async(q,selIdx,isCorrect)=>{
-    try{
-      const sys=`당신은 ${asm?.grade||"중학교"} ${asm?.subject||"과학"} 교사입니다. 학생이 아래 객관식 문제를 풀었습니다.
-[문제] ${q.text}
-[선택지] ${(q.choices||[]).map((c,i)=>`${i+1}) ${c}`).join("  ")}
-[정답 번호] ${q.correct+1}
-[학생이 고른 번호] ${selIdx+1}
-[정답 여부] ${isCorrect?"정답":"오답"}
-이 문제의 핵심 개념을 학생이 이해하도록 쉽게 설명하는 explanation을 2~3문장으로 작성하세요. 오답이면 왜 학생의 선택이 틀렸는지도 짚어주세요.
-explanation은 반드시 ${t.aiLang}(으)로 작성하세요. 반드시 JSON만 출력: {"explanation":"..."}`;
-      const raw=await askAI([{role:"user",parts:[{text:"개념 해설을 작성하세요."}]}],sys,600);
-      const p=extractJSON(raw);
-      return(p&&p.explanation)||"";
-    }catch{return"";}
-  };
-
-  const submitAnswer=async()=>{
-    if(loading)return;
-    const q=questions[idx];const isChoice=(q.type||"choice")==="choice";
-    if(isChoice){if(selected==null)return;}else{if(!input.trim())return;}
-    setLoading(true);
-    try{
-      let rec;
-      if(isChoice){
-        const isCorrect=selected===q.correct;
-        const explanation=await explainMC(q,selected,isCorrect);
-        rec={questionId:q.id,type:"choice",selected,response:(q.choices||[])[selected]||"",level:isCorrect?"도달":"미도달",score:isCorrect?100:0,diagnosis:isCorrect?mc("correct"):mc("incorrect"),explanation};
-      }else{
-        const response=input.trim();
-        const ev=await evaluate(q,response);
-        rec={questionId:q.id,type:"short",response,level:ev.level,score:ev.score,diagnosis:ev.diagnosis,explanation:ev.explanation};
-      }
-      const nextAns=[...answers.filter(a=>a.questionId!==q.id),rec];
-      setAnswers(nextAns);
-      const isLast=idx>=questions.length-1;
-      await persist(nextAns,isLast);
-      if(isLast){setPhase("done");}else{setIdx(idx+1);setInput("");setSelected(null);}
-    }catch(e){alert("채점 오류: "+e.message);}
-    setLoading(false);
-  };
-
-  if(!ready)return<Center><div style={{color:"#94A3B8"}}>{t.loading}</div></Center>;
-  if(!asm)return<Center><div style={{textAlign:"center",color:"#94A3B8"}}><div style={{fontSize:40}}>🔍</div><div style={{marginTop:10}}>{t.notFound}</div></div></Center>;
-
-  // 학번 입력 + 언어 선택
-  if(!confirmed)return(
-    <Center>
-      <div style={{background:"white",borderRadius:20,padding:32,width:340,boxShadow:"0 16px 48px rgba(0,0,0,0.15)",textAlign:"center"}}>
-        <div style={{fontSize:40,marginBottom:10}}>🩺</div>
-        <div style={{fontWeight:900,fontSize:20,color:BL,marginBottom:3}}>DIAGNOSE AI</div>
-        <div style={{fontWeight:700,fontSize:14,color:DK,marginBottom:3}}>{asm.title}</div>
-        {asm.subject&&<div style={{fontSize:12,color:"#64748B",marginBottom:8}}>📚 {asm.subject}</div>}
-        <div style={{fontSize:12,color:"#94A3B8",marginBottom:16}}>{t.qCount(questions.length)}</div>
-
-        <label style={{display:"block",textAlign:"left",fontSize:12,fontWeight:600,color:"#475569",marginBottom:6}}>{t.langLabel}</label>
-        <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:16}}>
-          {LANGS.map(([code,name])=>(
-            <button key={code} onClick={()=>setLang(code)} style={{padding:"7px 10px",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",border:lang===code?`2px solid ${BL}`:"1px solid #E2E8F0",background:lang===code?"#EFF6FF":"white",color:lang===code?BL:"#475569"}}>{name}</button>
-          ))}
-        </div>
-
-        <label style={{display:"block",textAlign:"left",fontSize:12,fontWeight:600,color:"#475569",marginBottom:6}}>{t.idLabel}</label>
-        <input value={sid} onChange={e=>setSid(e.target.value)} onKeyDown={e=>e.key==="Enter"&&sid.trim()&&setConfirmed(sid.replace(/\s+/g,""))} placeholder={t.idPh} autoFocus
-          style={{...inp,fontSize:18,textAlign:"center",fontWeight:700,padding:"12px",borderRadius:10}}/>
-        <button onClick={()=>sid.trim()&&setConfirmed(sid.replace(/\s+/g,""))} style={btn(BL,undefined,{width:"100%",marginTop:10,padding:"12px",fontSize:14,borderRadius:10})}>{t.confirm}</button>
-      </div>
-    </Center>
-  );
-
-  // 문제 번역 대기 화면 (한국어 외 언어 선택 시)
-  if(lang!=="ko"&&!transReady)return(
-    <Center>
-      <div style={{textAlign:"center",color:"#64748B"}}>
-        <div style={{fontSize:34,marginBottom:12}}>🌐</div>
-        <div style={{fontSize:14,fontWeight:600}}>{TRANSLATING[lang]||TRANSLATING.ko}</div>
-      </div>
-    </Center>
-  );
-
-  // 완료 화면 — 진단 리포트
-  if(phase==="done"){
-    const ans=a=>a&&(a.selected!=null||(a.response&&a.response.trim()));
-    const scored=answers.filter(ans);
-    const avgScore=Math.round(avg(answers));
-    const cnt={도달:0,부분도달:0,미도달:0};answers.forEach(a=>{if(ans(a))cnt[a.level]=(cnt[a.level]||0)+1;});
-    const weak=questions.filter(q=>{const a=answers.find(x=>x.questionId===q.id);return a&&(a.level==="미도달"||a.level==="부분도달");});
-    return(
-      <div style={{minHeight:"100vh",background:"#F1F5F9",paddingBottom:40}}>
-        <div style={{background:BL,color:"white",padding:"16px 16px 24px"}}>
-          <div style={{maxWidth:560,margin:"0 auto"}}>
-            <div style={{fontWeight:900,fontSize:16}}>DIAGNOSE AI</div>
-            <div style={{fontSize:12,opacity:0.8,marginBottom:16}}>{asm.title} · {confirmed}</div>
-            <div style={{background:"rgba(255,255,255,0.15)",borderRadius:12,padding:16,textAlign:"center"}}>
-              <div style={{fontSize:12,opacity:0.85}}>{t.overall}</div>
-              <div style={{fontSize:40,fontWeight:900,margin:"2px 0"}}>{avgScore}%</div>
-              <div style={{fontSize:12,opacity:0.9}}>{t.summary(cnt.도달,cnt.부분도달,cnt.미도달)}</div>
-            </div>
-          </div>
-        </div>
-        <div style={{maxWidth:560,margin:"-12px auto 0",padding:"0 16px"}}>
-          {weak.length>0&&(
-            <div style={{background:"#FFF7ED",border:"1px solid #FED7AA",borderRadius:12,padding:14,marginBottom:14}}>
-              <div style={{fontWeight:700,color:"#9A3412",fontSize:13,marginBottom:6}}>{t.reviewNeeded}</div>
-              <div style={{fontSize:12,color:"#7C2D12",lineHeight:1.7}}>{weak.map(q=>qConcept(q)||qText(q).slice(0,20)).join(" · ")}</div>
-            </div>
-          )}
-          {questions.map((q,i)=>{const a=answers.find(x=>x.questionId===q.id);const isChoice=(q.type||"choice")==="choice";const lv=a&&(a.response||a.selected!=null)?a.level:"미응답";const c=LV[lv];const ch=qChoices(q);const chosen=isChoice&&a&&a.selected!=null?(ch[a.selected]??a.response):a?.response;const isWrong=isChoice&&a&&a.selected!=null&&a.selected!==q.correct;return(
-            <div key={q.id} style={{background:"white",borderRadius:12,padding:16,marginBottom:12,boxShadow:"0 1px 4px rgba(0,0,0,0.06)"}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,marginBottom:8}}>
-                <span style={{fontWeight:700,fontSize:13,color:DK}}>{t.problemN(i+1)}</span>
-                <LevelBadge level={lv} label={t.levels[lv]}/>
-              </div>
-              <div style={{fontSize:13,color:DK,marginBottom:8,lineHeight:1.6}}>{qText(q)}</div>
-              <div style={{fontSize:12,color:"#334155",background:"#F8FAFC",borderRadius:8,padding:"8px 10px",marginBottom:8}}><b style={{color:BL}}>{t.myAnswer}</b> {chosen||t.noAnswer}</div>
-              {isWrong&&<div style={{fontSize:12,color:"#166534",background:"#F0FDF4",borderRadius:8,padding:"8px 10px",marginBottom:8,border:"1px solid #BBF7D0"}}><b>{mc("correctAnswer")}</b> {ch[q.correct]}</div>}
-              {a?.diagnosis&&<div style={{fontSize:12,color:c.fg,background:c.bg,borderRadius:8,padding:"8px 10px",marginBottom:6,lineHeight:1.6}}>🩺 <b>{t.diagnosis}</b> {a.diagnosis}</div>}
-              {a?.explanation&&<div style={{fontSize:12,color:"#475569",lineHeight:1.6}}>📖 <b>{t.conceptReview}</b> {a.explanation}</div>}
-            </div>
-          );})}
-          <div style={{textAlign:"center",color:"#94A3B8",fontSize:12,padding:"10px 0 20px"}}>{t.complete}</div>
-        </div>
-      </div>
-    );
-  }
-
-  // 문제 풀이 화면
-  const q=questions[idx];
-  const isChoice=(q.type||"choice")==="choice";
-  const choices=qChoices(q);
-  const prevAns=answers.find(a=>a.questionId===q.id);
-  const canSubmit=isChoice?selected!=null:!!input.trim();
-  return(
-    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"#F1F5F9"}}>
-      <div style={{background:BL,color:"white",padding:"10px 14px",flexShrink:0}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <div><div style={{fontWeight:900,fontSize:15}}>DIAGNOSE AI</div><div style={{fontSize:11,opacity:0.75}}>{asm.title}</div></div>
-          <div style={{textAlign:"right"}}><div style={{fontSize:11,opacity:0.75}}>👤 {confirmed}</div><div style={{fontWeight:800,fontSize:14}}>{t.progress(idx+1,questions.length)}</div></div>
-        </div>
-        <div style={{marginTop:8,height:6,background:"rgba(255,255,255,0.25)",borderRadius:6,overflow:"hidden"}}>
-          <div style={{height:"100%",width:`${(idx)/questions.length*100}%`,background:"white",borderRadius:6,transition:"width 0.3s"}}/>
-        </div>
-        {saveStatus==="saving"&&<div style={{marginTop:8,background:"rgba(255,255,255,0.2)",borderRadius:7,padding:"6px 12px",fontSize:11,fontWeight:600}}>{t.saving}</div>}
-        {saveStatus==="saved"&&<div style={{marginTop:8,background:"#10B981",borderRadius:7,padding:"6px 12px",fontSize:11,fontWeight:600}}>{t.saved}</div>}
-        {saveStatus==="error"&&<div style={{marginTop:8,background:"#DC2626",borderRadius:7,padding:"6px 12px",fontSize:11,fontWeight:700}}>{t.saveErr}</div>}
-      </div>
-
-      <div style={{flex:1,overflowY:"auto",padding:16}}>
-        <div style={{maxWidth:560,margin:"0 auto"}}>
-          {qConcept(q)&&<div style={{fontSize:11,color:BL,fontWeight:700,marginBottom:6}}>🔎 {qConcept(q)}</div>}
-          <div style={{background:"white",borderRadius:12,padding:18,boxShadow:"0 1px 4px rgba(0,0,0,0.07)",fontSize:15,color:DK,lineHeight:1.7,fontWeight:600}}>
-            Q{idx+1}. {qText(q)}
-          </div>
-
-          {isChoice&&(
-            <div style={{marginTop:14}}>
-              <div style={{fontSize:12,color:"#64748B",fontWeight:600,marginBottom:8}}>{mc("pickAnswer")}</div>
-              <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                {choices.map((c,ci)=>{const on=selected===ci;return(
-                  <button key={ci} onClick={()=>!loading&&setSelected(ci)} disabled={loading} style={{display:"flex",alignItems:"center",gap:12,textAlign:"left",padding:"13px 14px",borderRadius:10,cursor:loading?"default":"pointer",border:on?`2px solid ${BL}`:"1px solid #E2E8F0",background:on?"#EFF6FF":"white",boxShadow:on?"0 2px 8px rgba(29,78,216,0.12)":"0 1px 3px rgba(0,0,0,0.05)"}}>
-                    <span style={{width:26,height:26,flexShrink:0,borderRadius:"50%",border:on?`2px solid ${BL}`:"2px solid #CBD5E1",background:on?BL:"white",color:"white",fontWeight:900,fontSize:13,display:"flex",alignItems:"center",justifyContent:"center"}}>{String.fromCharCode(65+ci)}</span>
-                    <span style={{fontSize:14,color:DK,lineHeight:1.5,fontWeight:on?700:500}}>{c}</span>
-                  </button>
-                );})}
-              </div>
-            </div>
-          )}
-
-          {!isChoice&&prevAns&&prevAns.response&&(
-            <div style={{marginTop:12}}>
-              <div style={{fontSize:12,color:"#64748B",marginBottom:4}}>{t.prevAnswer}</div>
-              <div style={{background:"#EFF6FF",borderRadius:10,padding:"10px 13px",fontSize:13,color:"#334155"}}>{prevAns.response}</div>
-              <div style={{marginTop:8,display:"flex",alignItems:"center",gap:8}}>
-                <LevelBadge level={prevAns.level} small label={t.levels[prevAns.level]}/>
-                {prevAns.diagnosis&&<span style={{fontSize:12,color:"#475569"}}>🩺 {prevAns.diagnosis}</span>}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div style={{padding:"12px 16px",background:"white",borderTop:"1px solid #E2E8F0",flexShrink:0}}>
-        <div style={{maxWidth:560,margin:"0 auto"}}>
-          {!isChoice&&<textarea value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&(e.ctrlKey||e.metaKey))submitAnswer();}} placeholder={t.answerPh} disabled={loading}
-            style={{...inp,height:70,resize:"none",marginBottom:8}}/>}
-          <button onClick={submitAnswer} disabled={loading||!canSubmit} style={btn(loading||!canSubmit?"#CBD5E1":BL,undefined,{width:"100%",padding:"13px",fontSize:15,borderRadius:9,cursor:loading?"not-allowed":"pointer"})}>
-            {loading?t.diagnosing:idx>=questions.length-1?t.submitLast:t.submitNext}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+applyRole();
+window.addEventListener("hashchange",()=>{ role=detectRole(); applyRole(); });
 </script>
-</body>
 </html>
