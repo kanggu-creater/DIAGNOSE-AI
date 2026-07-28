@@ -1,658 +1,561 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ko">
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AI 오개념 진단평가 (이단계형)</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<style>
-  :root{
-    --paper:#F8F9F6;--paper-2:#FFFFFF;--grid:#E4EAE6;
-    --ink:#17222B;--ink-soft:#516069;--ink-faint:#8A97A0;--line:#D8E0DC;
-    --teal:#0E7C86;--teal-deep:#0A5A62;--teal-wash:#E7F2F1;
-    --amber:#E0912A;--amber-wash:#FBF1DF;
-    --purple:#6B4E9E;--purple-wash:#F0EBF8;
-    --ok:#127C55;--ok-wash:#E5F2EB;--danger:#C0483B;--danger-wash:#FBECEA;
-    --radius:14px;
-    --mono:ui-monospace,"SF Mono","SFMono-Regular",Menlo,Consolas,monospace;
-    --sans:"Pretendard",-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic","맑은 고딕",system-ui,sans-serif;
-  }
-  *{box-sizing:border-box} html,body{margin:0}
-  body{font-family:var(--sans);color:var(--ink);background-color:var(--paper);
-    background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
-    background-size:26px 26px;line-height:1.55;-webkit-font-smoothing:antialiased;padding:0 0 80px;}
-  .wrap{max-width:900px;margin:0 auto;padding:0 20px}
-  header{padding:30px 0 14px;display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap}
-  .kicker{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--purple);font-weight:600;display:flex;align-items:center;gap:9px}
-  .kicker .dot{width:8px;height:8px;border-radius:50%;background:var(--amber);display:inline-block}
-  h1{font-size:28px;letter-spacing:-.02em;margin:8px 0 4px;font-weight:800}
-  .sub{color:var(--ink-soft);font-size:14.5px;margin:0}
-  .head-actions{display:flex;gap:8px;flex-wrap:wrap}
-  .chip{font-family:var(--sans);font-size:12.5px;font-weight:600;color:var(--ink-soft);background:var(--paper-2);border:1.5px solid var(--line);border-radius:20px;padding:7px 13px;cursor:pointer;white-space:nowrap}
-  .chip:hover{border-color:var(--teal);color:var(--teal)}
-
-  .tabs{display:flex;gap:4px;margin:22px 0 20px;border-bottom:1.5px solid var(--line)}
-  .tab{appearance:none;border:0;background:none;cursor:pointer;font-family:var(--sans);font-size:15px;font-weight:600;color:var(--ink-faint);padding:11px 16px;position:relative;transition:color .15s}
-  .tab:hover{color:var(--ink-soft)} .tab.active{color:var(--ink)}
-  .tab.active::after{content:"";position:absolute;left:12px;right:12px;bottom:-1.5px;height:2.5px;background:var(--teal);border-radius:2px}
-
-  .card{background:var(--paper-2);border:1.5px solid var(--line);border-radius:var(--radius);padding:22px;box-shadow:0 1px 0 rgba(23,34,43,.02)}
-  .card + .card{margin-top:16px}
-  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-  .field{display:flex;flex-direction:column;gap:6px} .field.full{grid-column:1/-1}
-  label{font-size:13px;font-weight:600;color:var(--ink-soft)}
-  label .hint{font-weight:400;color:var(--ink-faint);font-size:12px;margin-left:6px}
-  input,select,textarea{font-family:var(--sans);font-size:14.5px;color:var(--ink);background:var(--paper);border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;width:100%;transition:border-color .15s,box-shadow .15s}
-  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 3px var(--teal-wash)}
-  textarea{resize:vertical;min-height:70px}
-  select{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1 1l5 5 5-5' stroke='%23516069' stroke-width='1.6' fill='none' stroke-linecap='round'/></svg>");background-repeat:no-repeat;background-position:right 12px center;padding-right:34px}
-
-  .btn{appearance:none;border:1.5px solid transparent;cursor:pointer;font-family:var(--sans);font-weight:600;font-size:14px;border-radius:10px;padding:11px 18px;transition:transform .06s,background .15s,border-color .15s,color .15s;display:inline-flex;align-items:center;justify-content:center;gap:8px}
-  .btn:active{transform:translateY(1px)}
-  .btn-primary{background:var(--teal);color:#fff} .btn-primary:hover{background:var(--teal-deep)} .btn-primary:disabled{background:#A9C3C3;cursor:not-allowed}
-  .btn-ghost{background:var(--paper);border-color:var(--line);color:var(--ink-soft)} .btn-ghost:hover{border-color:var(--ink-faint);color:var(--ink)}
-  .btn-lg{width:100%;padding:14px;font-size:15.5px}
-
-  .generate-row{margin-top:20px}
-  .qbtns{display:flex;gap:6px;flex-shrink:0}
-  .iconbtn{appearance:none;border:1.5px solid var(--line);background:var(--paper);cursor:pointer;font-family:var(--sans);font-size:12.5px;font-weight:600;color:var(--ink-soft);border-radius:8px;padding:6px 10px;transition:all .13s;white-space:nowrap}
-  .iconbtn:hover{border-color:var(--teal);color:var(--teal);background:var(--teal-wash)}
-  .iconbtn.del:hover{border-color:var(--danger);color:var(--danger);background:var(--danger-wash)}
-  .iconbtn:disabled{opacity:.5;cursor:not-allowed}
-
-  .mc-list{display:flex;flex-direction:column;gap:8px}
-  .mc-item{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--purple-wash)}
-  .mc-id{font-family:var(--mono);font-size:11px;font-weight:700;color:#fff;background:var(--purple);border-radius:6px;padding:3px 7px;flex-shrink:0}
-  .mc-body{flex:1}.mc-name{font-weight:700;font-size:14px;color:var(--ink)}.mc-desc{font-size:13px;color:var(--ink-soft);margin-top:2px}
-  .mc-btns{display:flex;gap:5px;flex-shrink:0}
-
-  .qlist{margin-top:16px;display:flex;flex-direction:column;gap:14px}
-  .q{background:var(--paper-2);border:1.5px solid var(--line);border-radius:var(--radius);padding:18px 18px 16px;position:relative}
-  .q-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px}
-  .q-num{font-family:var(--mono);font-size:13px;font-weight:700;color:#fff;background:var(--teal);width:28px;height:28px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
-  .q-titlewrap{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-  .badge{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.03em;padding:3px 8px;border-radius:20px;background:var(--amber-wash);color:#9A6410}
-  .badge.concept{background:var(--teal-wash);color:var(--teal-deep)}
-  .badge.tier{background:var(--purple-wash);color:var(--purple)}
-  .tier-label{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.05em;color:var(--purple);margin:12px 0 4px;text-transform:uppercase}
-  .tier-label.t1{color:var(--teal)}
-  .q-question{font-weight:500;margin-bottom:6px;white-space:pre-wrap}
-  .opts{list-style:none;padding:0;margin:6px 0 0;display:flex;flex-direction:column;gap:5px}
-  .opts li{font-size:14.5px;color:var(--ink-soft);padding:2px 0;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-  .otag{font-family:var(--mono);font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:12px;background:var(--purple-wash);color:var(--purple);white-space:nowrap}
-  .otag.correct{background:var(--ok-wash);color:var(--ok)}
-  .answer-box{margin-top:12px;padding:10px 12px;border-radius:10px;background:var(--teal-wash);border-left:3px solid var(--teal);font-size:13.5px;color:var(--teal-deep)}
-  .answer-box .exp{color:var(--ink-soft);margin-top:4px;display:block}
-  .edit-grid{display:flex;flex-direction:column;gap:10px;margin-top:4px}.edit-grid label{font-size:12px}.edit-actions{display:flex;gap:8px;margin-top:4px}
-
-  .empty{text-align:center;color:var(--ink-faint);padding:44px 20px;border:1.6px dashed var(--line);border-radius:var(--radius);margin-top:22px;background:rgba(255,255,255,.5)}
-  .empty .big{font-size:15px;color:var(--ink-soft);font-weight:600;margin-bottom:4px}
-  .spinner{width:16px;height:16px;border:2.5px solid rgba(255,255,255,.45);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
-  .spinner.dark{border-color:var(--teal-wash);border-top-color:var(--teal)}
-  @keyframes spin{to{transform:rotate(360deg)}}
-  .loading-note{display:flex;align-items:center;gap:10px;justify-content:center;color:var(--ink-soft);font-size:14px;padding:34px;text-align:center}
-  .errbar{background:var(--danger-wash);border:1.5px solid #EDC7C1;color:var(--danger);border-radius:10px;padding:12px 14px;font-size:13.5px;margin-top:16px}
-  .warn{background:var(--amber-wash);border:1.5px solid #EAD3A6;color:#8A5B10;border-radius:10px;padding:10px 12px;font-size:13px;margin-top:12px}
-  .infobar{background:var(--teal-wash);border:1.5px solid #BEDDD9;color:var(--teal-deep);border-radius:10px;padding:12px 14px;font-size:13.5px}
-
-  .qr-actions{display:flex;gap:10px;margin-top:22px;flex-wrap:wrap}.qr-actions .btn{flex:1;min-width:150px}
-  .qr-inner{display:flex;gap:22px;align-items:flex-start;flex-wrap:wrap;margin-top:8px}
-  .qr-canvas-wrap{background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:14px;line-height:0}
-  .qr-side{flex:1;min-width:220px}
-  .codepill{font-family:var(--mono);font-weight:700;font-size:20px;letter-spacing:.15em;color:var(--teal-deep);background:var(--teal-wash);border-radius:10px;padding:8px 14px;display:inline-block}
-
-  .stats{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
-  .stat{flex:1;min-width:120px;background:var(--paper-2);border:1.5px solid var(--line);border-radius:12px;padding:14px 16px}
-  .stat .n{font-family:var(--mono);font-size:24px;font-weight:800;color:var(--teal);line-height:1}
-  .stat .l{font-size:12.5px;color:var(--ink-soft);margin-top:5px}
-  .tablewrap{overflow-x:auto;border:1.5px solid var(--line);border-radius:12px}
-  table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:520px}
-  th,td{padding:9px 11px;text-align:center;border-bottom:1px solid var(--line);white-space:nowrap}
-  th{background:var(--paper);font-weight:700;color:var(--ink-soft);position:sticky;top:0}
-  td.sid{font-family:var(--mono);font-weight:700;color:var(--ink);text-align:left}
-  td.mcname{text-align:left;font-weight:600;color:var(--ink)}
-  .mark-o{color:var(--ok);font-weight:800}.mark-x{color:var(--danger);font-weight:800}.mark-r{color:var(--amber);font-weight:700}.mark-n{color:var(--ink-faint)}
-  tr:last-child td{border-bottom:0}.qrate{font-size:12px;color:var(--ink-faint)}
-  .bar{height:8px;border-radius:5px;background:var(--purple);display:inline-block;vertical-align:middle}
-  .barwrap{background:var(--line);border-radius:5px;width:120px;display:inline-block;vertical-align:middle;overflow:hidden}
-  .h3row{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:22px 0 10px}.h3row h2{margin:0;font-size:18px}
-
-  .s-q{background:var(--paper-2);border:1.5px solid var(--line);border-radius:var(--radius);padding:18px;margin-bottom:14px}
-  .s-qhead{display:flex;gap:10px;align-items:center;margin-bottom:10px}
-  .s-opt{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;margin-top:8px;cursor:pointer;transition:all .12s;font-size:14.5px}
-  .s-opt:hover{border-color:var(--teal)} .s-opt input{width:auto;margin:0} .s-opt.sel{border-color:var(--teal);background:var(--teal-wash)}
-  .done-card{text-align:center;padding:40px 22px}
-  .done-card .check{width:56px;height:56px;border-radius:50%;background:var(--ok-wash);color:var(--ok);display:inline-flex;align-items:center;justify-content:center;font-size:28px;margin-bottom:12px}
-
-  .modal-bg{position:fixed;inset:0;background:rgba(23,34,43,.4);display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
-  .modal-bg.show{display:flex}
-  .modal{background:var(--paper-2);border-radius:16px;max-width:460px;width:100%;padding:24px;box-shadow:0 20px 50px rgba(0,0,0,.25)}
-  .modal h3{margin:0 0 4px;font-size:18px}.modal .msub{color:var(--ink-soft);font-size:13px;margin:0 0 16px}.modal .field{margin-bottom:14px}
-  .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:8px}
-
-  .hidden{display:none!important}
-  @media (max-width:640px){.form-grid{grid-template-columns:1fr}h1{font-size:23px}.q-head{flex-direction:column}.qbtns{align-self:flex-end}}
-  @media print{body{background:#fff}.tabs,.qbtns,.qr-actions,.chip,.head-actions,.no-print{display:none!important}}
-</style>
-
-<div class="wrap">
-  <header>
-    <div>
-      <div class="kicker"><span class="dot"></span><span id="kicker">중학교 과학 · 이단계 오개념 진단</span></div>
-      <h1 id="title">AI 오개념 진단평가</h1>
-      <p class="sub" id="subtitle">이단계형(현상 + 이유) 문항으로 학생의 오개념 보유 여부를 진단합니다.</p>
-    </div>
-    <div class="head-actions" id="headActions">
-      <button class="chip" id="settingsChip" onclick="openSettings()">⚙ 설정</button>
-      <button class="chip" id="roleChip" onclick="toggleRole()">학생 화면 미리보기 →</button>
-    </div>
-  </header>
-
-  <div id="teacherApp">
-    <div class="tabs">
-      <button class="tab active" data-tab="make">문제 출제</button>
-      <button class="tab" data-tab="result">결과 확인</button>
-    </div>
-
-    <section id="tab-make">
-      <div id="cfgBanner"></div>
-      <div class="card">
-        <div class="form-grid">
-          <div class="field"><label>교육과정</label>
-            <select id="curriculum"><option>2022 개정 교육과정</option><option>2015 개정 교육과정</option></select></div>
-          <div class="field"><label>학년</label>
-            <select id="grade"><option>중학교 1학년</option><option selected>중학교 2학년</option><option>중학교 3학년</option></select></div>
-          <div class="field full"><label>학습 주제 / 단원 <span class="hint">예: 마찰전기와 정전기 유도</span></label>
-            <input id="unit" type="text" placeholder="오개념을 진단할 주제를 입력하세요"></div>
-          <div class="field"><label>문항 수</label><input id="count" type="number" min="1" max="12" value="5"></div>
-          <div class="field"><label>오개념 개수 <span class="hint">분석할 대표 오개념</span></label><input id="mccount" type="number" min="3" max="8" value="5"></div>
-          <div class="field full"><label>AI에게 요청 <span class="hint">특정 오개념 강조·상황 맥락·난이도 등</span></label>
-            <textarea id="request" placeholder="예: 정전기 유도와 마찰전기를 혼동하는 오개념을 꼭 포함, 일상 현상 상황으로 출제해 주세요."></textarea></div>
-        </div>
-        <div class="generate-row"><button class="btn btn-primary btn-lg" id="genBtn" onclick="generateAll()"><span id="genLabel">오개념 분석 · 이단계 문항 생성</span></button></div>
-        <div id="genError"></div>
-      </div>
-
-      <div id="mcArea"></div>
-      <div id="qArea">
-        <div class="empty"><div class="big">아직 생성된 문항이 없습니다</div><div>주제를 입력하고 <b>오개념 분석 · 이단계 문항 생성</b>을 눌러 보세요.</div></div>
-      </div>
-
-      <div class="qr-actions no-print" id="qrActions" style="display:none">
-        <button class="btn btn-ghost" onclick="addBlank()">+ 빈 문항 추가</button>
-        <button class="btn btn-primary" onclick="publishQuiz()">QR 코드 생성</button>
-      </div>
-      <div class="card no-print" id="publishPanel" style="display:none"><h3 style="margin:0 0 6px;font-size:17px">학생에게 배포하기</h3><div id="publishBody"></div></div>
-    </section>
-
-    <section id="tab-result" class="hidden">
-      <div id="resultArea">
-        <div class="empty"><div class="big">확인할 결과가 없습니다</div><div>문항을 만들어 <b>QR 코드 생성</b>으로 배포하면 오개념 현황이 여기에 모입니다.</div></div>
-      </div>
-    </section>
-  </div>
-
-  <div id="studentApp" class="hidden"><div id="studentBody"></div></div>
-</div>
-
-<div class="modal-bg" id="settingsModal">
-  <div class="modal">
-    <h3>설정</h3>
-    <p class="msub">API 키는 이 브라우저에만 저장되며 학생이나 서버로 전송되지 않습니다.</p>
-    <div class="field"><label>Gemini API 키 <span class="hint">문항 생성용 (교사 기기)</span></label><input id="cfgKey" type="password" placeholder="AIza..."></div>
-    <div class="field"><label>모델 <span class="hint">예: gemini-2.0-flash</span></label><input id="cfgModel" placeholder="gemini-2.0-flash"></div>
-    <div class="field"><label>Apps Script URL <span class="hint">파일에 미리 넣었다면 비워도 됨</span></label><input id="cfgUrl" placeholder="https://script.google.com/macros/s/.../exec"></div>
-    <div class="modal-actions"><button class="btn btn-ghost" onclick="closeSettings()">닫기</button><button class="btn btn-primary" onclick="saveSettings()">저장</button></div>
-  </div>
-</div>
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AI 오개념 진단평가 (이단계형)</title>
+  <meta name="theme-color" content="#175C3C"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css"/>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:"Pretendard",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;background:#F5F5F0;color:#1B2620;}
+    textarea,input,select,button{font-family:inherit;}
+    @keyframes spin{to{transform:rotate(360deg);}}
+    .spin{width:15px;height:15px;border:2.5px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block;vertical-align:middle;}
+  </style>
+</head>
+<body>
+<div id="root"></div>
 
 <script>
-/* ============================================================
-   ▼▼▼ 배포 전 이 한 줄만 본인 Apps Script 웹앱 URL로 바꾸세요 ▼▼▼ */
-const SCRIPT_URL_HARDCODED = "PASTE_YOUR_APPS_SCRIPT_URL_HERE";
-/* ▲▲▲ 예: "https://script.google.com/macros/s/AKfy.../exec" ▲▲▲
-   ============================================================ */
-
-const CIRCLED = "①②③④⑤⑥⑦⑧⑨";
-let state = { questions:[], misconceptions:[], editing:-1, mcEditing:-1, activeCode:null };
-
-/* ---------- 설정 ---------- */
-function getCfg(){
-  let c={}; try{ c=JSON.parse(localStorage.getItem("assess_cfg")||"{}"); }catch(e){}
-  const hard=(SCRIPT_URL_HARDCODED&&!SCRIPT_URL_HARDCODED.startsWith("PASTE"))?SCRIPT_URL_HARDCODED:"";
-  return { apiKey:c.apiKey||"", model:c.model||"gemini-2.0-flash", scriptUrl: hard || c.scriptUrl || "" };
+/* ── Firebase (기존 ASSESS AI 프로젝트 재사용 · config는 비밀 아님) ── */
+const firebaseConfig = {
+  apiKey: "AIzaSyCEfanJFvovY499hYXKaxkJnI2WZqG6ydU",
+  authDomain: "assess-ai-77355.firebaseapp.com",
+  databaseURL: "https://assess-ai-77355-default-rtdb.firebaseio.com",
+  projectId: "assess-ai-77355",
+  storageBucket: "assess-ai-77355.firebasestorage.app",
+  messagingSenderId: "36791489485",
+  appId: "1:36791489485:web:937b4ed1dd67af92b4aa84"
+};
+function safeInitFirebase(){
+  if(typeof firebase==="undefined"||!firebase.initializeApp)return false;
+  try{firebase.initializeApp(firebaseConfig);return true;}
+  catch(e){if(e.message&&e.message.includes("already exists"))return true;console.error("[Firebase]",e);return false;}
 }
-function openSettings(){ const c=getCfg();
-  document.getElementById("cfgKey").value=c.apiKey; document.getElementById("cfgModel").value=c.model;
-  const hard=(SCRIPT_URL_HARDCODED&&!SCRIPT_URL_HARDCODED.startsWith("PASTE"));
-  document.getElementById("cfgUrl").value=hard?SCRIPT_URL_HARDCODED:c.scriptUrl; document.getElementById("cfgUrl").disabled=hard;
-  document.getElementById("settingsModal").classList.add("show"); }
-function closeSettings(){ document.getElementById("settingsModal").classList.remove("show"); }
-function saveSettings(){ const cur=getCfg();
-  const cfg={ apiKey:document.getElementById("cfgKey").value.trim(), model:document.getElementById("cfgModel").value.trim()||"gemini-2.0-flash",
-    scriptUrl:document.getElementById("cfgUrl").disabled?cur.scriptUrl:document.getElementById("cfgUrl").value.trim() };
-  localStorage.setItem("assess_cfg",JSON.stringify(cfg)); closeSettings(); updateCfgBanner(); toast("설정을 저장했어요"); }
-function updateCfgBanner(){ const c=getCfg(), el=document.getElementById("cfgBanner"); if(!el)return;
-  const miss=[]; if(!c.apiKey)miss.push("Gemini API 키"); if(!c.scriptUrl)miss.push("Apps Script URL");
-  el.innerHTML=miss.length?`<div class="warn" style="margin:0 0 16px">${miss.join(" · ")}가 설정되지 않았어요. 오른쪽 위 <b>⚙ 설정</b>에서 입력해 주세요.</div>`:""; }
+if(!safeInitFirebase()){let n=0;const iv=setInterval(()=>{if(safeInitFirebase()||n>30)clearInterval(iv);n++;},200);}
+</script>
 
-/* ---------- 백엔드(구글 시트) ---------- */
-async function apiGet(params){ const c=getCfg(); if(!c.scriptUrl) throw new Error("Apps Script URL 미설정");
-  const r=await fetch(c.scriptUrl+"?"+new URLSearchParams(params).toString()); return r.json(); }
-async function apiPost(body){ const c=getCfg(); if(!c.scriptUrl) throw new Error("Apps Script URL 미설정");
-  const r=await fetch(c.scriptUrl,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(body)}); return r.json(); }
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
 
-/* ---------- Gemini API (본인 키, 브라우저 직접 호출) ---------- */
-async function callAI(prompt, maxTokens){
-  const c=getCfg(); if(!c.apiKey) throw new Error("Gemini API 키가 없습니다. ⚙ 설정에서 입력하세요");
-  const model=c.model||"gemini-2.0-flash";
-  const url=`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(c.apiKey)}`;
-  const res=await fetch(url,{ method:"POST", headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({ contents:[{parts:[{text:prompt}]}],
-      generationConfig:{ maxOutputTokens:maxTokens||4096, temperature:0.6, responseMimeType:"application/json" } }) });
-  if(!res.ok){ const t=await res.text().catch(()=> ""); throw new Error("API 오류("+res.status+") "+t.slice(0,200)); }
-  const data=await res.json();
-  const cand=data.candidates&&data.candidates[0];
-  if(!cand){ const bl=data.promptFeedback&&data.promptFeedback.blockReason; throw new Error(bl?("요청 차단: "+bl):"응답이 비어 있습니다"); }
-  const parts=(cand.content&&cand.content.parts)||[];
-  return parts.map(p=>p.text||"").join("").trim();
+const GR="#175C3C", GRD="#0F4029", GB="#2E9E63", INK="#1B2620", MUT="#5E6B62",
+      PAR="#FBF3D3", PARL="#E7D89B", SAGE="#E9F0EA", SAGEL="#D4E1D6", LINE="#DBE0DA", PAPER="#F5F5F0",
+      PUR="#6B4E9E", PURW="#F0EBF8", OKC="#127C55", DANG="#C0483B";
+const btn=(bg,col="white",ex={})=>({padding:"11px 20px",background:bg,color:col,border:"none",borderRadius:9,cursor:"pointer",fontWeight:700,fontSize:14,...ex});
+const inp={padding:"10px 12px",border:"1px solid "+LINE,borderRadius:8,fontSize:14,width:"100%",outline:"none",fontFamily:"inherit",background:"#fff"};
+const lab={fontSize:13,fontWeight:700,color:"#475569",display:"block",marginBottom:5};
+const card={background:"#fff",borderRadius:14,padding:22,boxShadow:"0 1px 4px rgba(16,52,34,.08)",marginBottom:18};
+const shortCode=id=>id?id.slice(-6).toUpperCase():"";
+const FB="https://assess-ai-77355-default-rtdb.firebaseio.com";
+const now=()=>new Date().toISOString();
+const fmtTime=t=>{try{return new Date(t).toLocaleString("ko-KR",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"});}catch{return"";}};
+const CIRCLED="①②③④⑤⑥⑦⑧⑨";
+
+/* ── Gemini (키는 Firebase /config/geminiKey 에서 로드) ── */
+const CFG={get key(){return localStorage.getItem("bwd_key")||"";},set key(v){localStorage.setItem("bwd_key",v);}};
+async function loadGeminiKey(){try{const r=await fetch(FB+"/config/geminiKey.json");const d=await r.json();if(d&&typeof d==="string"){CFG.key=d;return true;}}catch{}return !!CFG.key;}
+async function gemini(parts,sys,maxTokens=8192){
+  if(!CFG.key)throw new Error("Gemini 키가 설정되지 않았습니다.");
+  const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${CFG.key}`,{
+    method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({system_instruction:{parts:[{text:sys}]},contents:[{role:"user",parts}],generationConfig:{maxOutputTokens:maxTokens,temperature:0.5,thinkingConfig:{thinkingBudget:0},responseMimeType:"application/json"}})
+  });
+  const d=await res.json();
+  if(d.error)throw new Error(d.error.message);
+  if(!d.candidates||!d.candidates[0])throw new Error("응답이 비어 있습니다.");
+  return (d.candidates[0].content.parts||[]).filter(p=>p.text).map(p=>p.text).join("");
 }
-function parseJSON(text,arr){ let t=(text||"").replace(/```json/gi,"").replace(/```/g,"").trim();
-  const o=arr?"[":"{",c=arr?"]":"}"; const s=t.indexOf(o),e=t.lastIndexOf(c); if(s!==-1&&e!==-1) t=t.slice(s,e+1); return JSON.parse(t); }
-function val(id){return document.getElementById(id).value.trim();}
-function ctx(){ return `- 교육과정: ${val("curriculum")}
-- 학년: ${val("grade")}
-- 학습 주제: ${val("unit")||"(미입력 — 학년 수준 대표 주제로 자율 선택)"}
-- 추가 요청: ${val("request")||"없음"}`; }
-
-/* ---------- 역할 라우팅 ---------- */
-function hashParams(){ return new URLSearchParams((location.hash||"").replace(/^#/,"")); }
-function detectRole(){ return hashParams().get("role")==="student"?"student":"teacher"; }
-let role=detectRole();
-function applyRole(){ const t=document.getElementById("teacherApp"), s=document.getElementById("studentApp");
-  if(role==="student"){ t.classList.add("hidden"); s.classList.remove("hidden");
-    document.getElementById("kicker").textContent="오개념 진단 · 학생용";
-    document.getElementById("title").textContent="진단평가";
-    document.getElementById("subtitle").textContent="학번을 입력하고, 각 문항의 1·2단계를 모두 고른 뒤 제출하세요.";
-    document.getElementById("settingsChip").classList.add("hidden");
-    document.getElementById("roleChip").textContent="교사 화면 →"; loadStudentQuiz();
-  }else{ s.classList.add("hidden"); t.classList.remove("hidden");
-    document.getElementById("kicker").textContent="중학교 과학 · 이단계 오개념 진단";
-    document.getElementById("title").textContent="AI 오개념 진단평가";
-    document.getElementById("subtitle").textContent="이단계형(현상 + 이유) 문항으로 학생의 오개념 보유 여부를 진단합니다.";
-    document.getElementById("settingsChip").classList.remove("hidden");
-    document.getElementById("roleChip").textContent="학생 화면 미리보기 →"; updateCfgBanner(); } }
-function toggleRole(){ if(role==="student"){ location.hash=""; role="teacher"; } else role="student"; applyRole(); }
-document.querySelectorAll(".tab").forEach(t=>{ t.onclick=()=>{ document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active")); t.classList.add("active");
-  const tab=t.dataset.tab; document.getElementById("tab-make").classList.toggle("hidden",tab!=="make"); document.getElementById("tab-result").classList.toggle("hidden",tab!=="result");
-  if(tab==="result") renderResults(); }; });
-
-/* ---------- 정규화 ---------- */
-function normMc(m){ return {id:m.id||("M"+Math.random().toString(36).slice(2,5)),name:m.name||"",description:m.description||""}; }
-function normalize(q){ return {
-  type: q.type || "이단계형",
-  question: q.question||"",
-  options: Array.isArray(q.options)?q.options:[],
-  answer: q.answer||"",
-  reasonPrompt: q.reasonPrompt||"위와 같이 생각한 이유로 가장 알맞은 것은?",
-  reasons: Array.isArray(q.reasons)?q.reasons:[],
-  reasonAnswer: q.reasonAnswer||"",
-  reasonMap: Array.isArray(q.reasonMap)?q.reasonMap:[],
-  optionMap: Array.isArray(q.optionMap)?q.optionMap:[],
-  targets: Array.isArray(q.targets)?q.targets:[],
-  concept: q.concept||"", explanation: q.explanation||"" }; }
-
-/* ---------- 생성 ---------- */
-async function generateAll(){
-  if(!getCfg().apiKey){ openSettings(); return; }
-  const count=Math.max(1,Math.min(12,parseInt(val("count"))||5));
-  const mccount=Math.max(3,Math.min(8,parseInt(val("mccount"))||5));
-  if(!val("unit")&&!confirm("학습 주제가 비어 있습니다. 학년 수준 대표 주제로 생성할까요?"))return;
-  setGenLoading(true); showError("");
-  const prompt=`너는 대한민국 중학교 과학교육과 학생 '오개념(misconception)' 연구에 정통한 전문가야.
-${ctx()}
-
-[1단계 · 오개념 분석] 이 주제에 대해 해당 학년 학생들이 흔히 갖는, 과학교육 문헌에서 반복적으로 보고되는 '대표 오개념'을 ${mccount}개 도출.
-- 실제로 잘 알려진 오개념만. 없는 논문 제목·출처를 지어내지 말 것.
-- 각 항목: id("M1","M2"...), name(한 줄), description(학생이 어떻게·왜 잘못 이해하는지 1~2문장).
-
-[2단계 · 이단계형(two-tier) 진단 문항] 위 오개념을 진단하는 이단계형 문항 ${count}개.
-- 1단계: 현상/상황에 대한 객관식(선택지 4개, ①~④), 정답 1개.
-- 2단계: "그렇게 생각한 이유"를 묻는 객관식(선택지 4개). 정확히 1개만 과학적으로 옳은 이유이고, 나머지 오답은 각각 특정 오개념(M#)을 반영.
-- reasonMap: 2단계 선택지 순서대로 "correct" 또는 해당 오개념 id 를 담은 배열(길이 4).
-- 학생은 1·2단계 모두 맞아야 '올바른 이해'로 판정하며, 2단계 오답으로 오개념을 진단.
-- 발문은 학생 수준으로 명확히, 가능하면 일상 상황·현상 기반.
-
-반드시 아래 JSON으로만 응답:
-{"misconceptions":[{"id":"M1","name":"...","description":"..."}],
- "questions":[{"type":"이단계형","question":"1단계 발문","options":["① ...","② ...","③ ...","④ ..."],"answer":"1단계 정답 선택지 내용",
-   "reasonPrompt":"2단계 발문","reasons":["① ...","② ...","③ ...","④ ..."],"reasonAnswer":"2단계 정답 선택지 내용","reasonMap":["...","correct","...","..."],
-   "targets":["M#"],"concept":"핵심 개념","explanation":"정답 근거 및 각 이유 오답이 드러내는 오개념 요약"}]}`;
-  try{
-    const obj=parseJSON(await callAI(prompt,8192),false);
-    state.misconceptions=(obj.misconceptions||[]).map(normMc);
-    state.questions=(obj.questions||[]).map(normalize);
-    state.editing=-1; state.mcEditing=-1; document.getElementById("publishPanel").style.display="none";
-    renderMisconceptions(); renderQuestions();
-  }catch(err){ showError("생성 실패: "+err.message); }
-  finally{ setGenLoading(false); }
-}
-async function regenFromMc(){
-  if(!state.misconceptions.length){ toast("먼저 오개념을 분석하세요"); return; }
-  const count=Math.max(1,Math.min(12,parseInt(val("count"))||5));
-  setGenLoading(true,"이단계 문항 다시 생성 중…"); showError("");
-  const mcList=state.misconceptions.map(m=>`${m.id}: ${m.name} — ${m.description}`).join("\n");
-  const prompt=`너는 중학교 과학 오개념 진단 이단계형 문항 출제 전문가야.
-${ctx()}
-아래 '고정' 오개념 목록만 사용해(새 오개념 만들지 말고 이 id만) 이단계형 문항 ${count}개 생성.
-${mcList}
-
-각 문항: 1단계 객관식(4지, 정답1) + 2단계 이유 객관식(4지, 정답1, 오답은 위 오개념 반영). reasonMap은 2단계 선택지 순서대로 "correct" 또는 위 id.
-아래 JSON 배열로만 응답:
-[{"type":"이단계형","question":"...","options":["① ...","② ...","③ ...","④ ..."],"answer":"1단계 정답 내용","reasonPrompt":"...","reasons":["① ...","② ...","③ ...","④ ..."],"reasonAnswer":"2단계 정답 내용","reasonMap":["...","correct","...","..."],"targets":["M#"],"concept":"...","explanation":"..."}]`;
-  try{ state.questions=parseJSON(await callAI(prompt,8192),true).map(normalize); state.editing=-1; renderQuestions(); }
-  catch(err){ showError("문항 재생성 실패: "+err.message); }
-  finally{ setGenLoading(false); }
-}
-async function regenerate(i){
-  const btn=document.getElementById("reg-"+i); if(btn){btn.disabled=true;btn.textContent="생성 중…";} showError("");
-  const mcList=state.misconceptions.map(m=>`${m.id}: ${m.name} — ${m.description}`).join("\n");
-  const existing=state.questions.map((q,idx)=>(idx+1)+". "+q.question).join("\n");
-  const prompt=`너는 중학교 과학 오개념 진단 이단계형 출제 전문가야. 아래 오개념 목록을 이용해 기존과 겹치지 않는 '새' 이단계형 문항 1개만 생성.
-${ctx()}
-오개념 목록(이 id만 사용):
-${mcList}
-기존 문항:
-${existing}
-아래 JSON 객체 하나만 응답:
-{"type":"이단계형","question":"...","options":["① ...","② ...","③ ...","④ ..."],"answer":"1단계 정답 내용","reasonPrompt":"...","reasons":["① ...","② ...","③ ...","④ ..."],"reasonAnswer":"2단계 정답 내용","reasonMap":["...","correct","...","..."],"targets":["M#"],"concept":"...","explanation":"..."}`;
-  try{ state.questions[i]=normalize(parseJSON(await callAI(prompt,3000),false)); state.editing=-1; renderQuestions(); }
-  catch(err){ showError("재출제 실패: "+err.message); if(btn){btn.disabled=false;btn.textContent="재출제";} }
+async function geminiJSON(parts,sys,mt=8192){return extractJson(await gemini(parts,sys,mt));}
+function extractJson(text){
+  let t=(text||"").trim().replace(/```json/gi,"").replace(/```/g,"").trim();
+  const s=t.indexOf("{");if(s>0)t=t.slice(s);
+  const tp=str=>{try{return JSON.parse(str);}catch(e){return undefined;}};
+  let o=tp(t);if(o)return o;
+  const stackAt=str=>{const st=[];let q=false,e=false;for(const ch of str){if(q){if(e)e=false;else if(ch==="\\")e=true;else if(ch==='"')q=false;continue;}if(ch==='"'){q=true;continue;}if(ch==="{")st.push("}");else if(ch==="[")st.push("]");else if(ch==="}"||ch==="]")st.pop();}return st;};
+  let q=false,e=false,depth=0,cut=-1;
+  for(let i=0;i<t.length;i++){const ch=t[i];if(q){if(e)e=false;else if(ch==="\\")e=true;else if(ch==='"')q=false;continue;}if(ch==='"'){q=true;continue;}if(ch==="{"||ch==="[")depth++;else if(ch==="}"||ch==="]"){depth--;if(depth>=1)cut=i;}}
+  if(cut>0){let h=t.slice(0,cut+1).replace(/,\s*$/,"");const st=stackAt(h);for(let i=st.length-1;i>=0;i--)h+=st[i];o=tp(h);if(o)return o;}
+  throw new Error("AI 응답을 해석하지 못했습니다. 다시 시도해 주세요.");
 }
 
-/* ---------- 오개념 패널 ---------- */
-function mcName(id){ const m=state.misconceptions.find(x=>x.id===id); return m?m.name:id; }
-function renderMisconceptions(){
-  const el=document.getElementById("mcArea");
-  if(!state.misconceptions.length){ el.innerHTML=""; return; }
-  const items=state.misconceptions.map((m,i)=> state.mcEditing===i?mcEdit(m,i):mcView(m,i)).join("");
-  el.innerHTML=`<div class="card" style="margin-top:16px">
-    <div class="h3row" style="margin:0 0 12px"><h2>📚 주요 오개념 분석 <span style="color:var(--ink-faint);font-weight:600;font-size:13px">${state.misconceptions.length}개</span></h2>
-      <button class="btn btn-ghost no-print" onclick="regenFromMc()">이 오개념으로 문항 다시 생성</button></div>
-    <div class="mc-list">${items}</div>
-    <p class="no-print" style="color:var(--ink-faint);font-size:12.5px;margin:12px 0 0">문헌에서 보고되는 대표 오개념을 AI가 정리했습니다. 필요하면 수정·삭제 후 문항을 다시 생성하세요.</p></div>`;
-}
-function mcView(m,i){ return `<div class="mc-item"><span class="mc-id">${esc(m.id)}</span>
-  <div class="mc-body"><div class="mc-name">${esc(m.name)}</div><div class="mc-desc">${esc(m.description)}</div></div>
-  <div class="mc-btns no-print"><button class="iconbtn" onclick="editMc(${i})">수정</button><button class="iconbtn del" onclick="deleteMc(${i})">삭제</button></div></div>`; }
-function mcEdit(m,i){ return `<div class="mc-item" style="display:block">
-  <div class="field"><label>이름</label><input id="mc-n-${i}" value="${esc(m.name)}"></div>
-  <div class="field" style="margin-top:8px"><label>설명</label><textarea id="mc-d-${i}">${esc(m.description)}</textarea></div>
-  <div class="edit-actions"><button class="btn btn-primary" onclick="saveMc(${i})">저장</button><button class="btn btn-ghost" onclick="cancelMc()">취소</button></div></div>`; }
-function editMc(i){ state.mcEditing=i; renderMisconceptions(); }
-function cancelMc(){ state.mcEditing=-1; renderMisconceptions(); }
-function saveMc(i){ state.misconceptions[i].name=document.getElementById("mc-n-"+i).value; state.misconceptions[i].description=document.getElementById("mc-d-"+i).value; state.mcEditing=-1; renderMisconceptions(); }
-function deleteMc(i){ if(!confirm("이 오개념을 삭제할까요?"))return; state.misconceptions.splice(i,1); renderMisconceptions(); renderQuestions(); }
+/* ── AI: 오개념 분석 + 이단계 문항 ── */
+function normMc(m){return {id:m.id||("M"+Math.random().toString(36).slice(2,5)),name:m.name||"",description:m.description||""};}
+function normQ(q){return {
+  type:"이단계형",question:q.question||"",options:Array.isArray(q.options)?q.options:[],answer:q.answer||"",
+  reasonPrompt:q.reasonPrompt||"위와 같이 생각한 이유로 가장 알맞은 것은?",reasons:Array.isArray(q.reasons)?q.reasons:[],
+  reasonAnswer:q.reasonAnswer||"",reasonMap:Array.isArray(q.reasonMap)?q.reasonMap:[],targets:Array.isArray(q.targets)?q.targets:[],
+  concept:q.concept||"",explanation:q.explanation||""};}
+function ctxStr(d){return `- 교육과정: ${d.curriculum}\n- 학년: ${d.grade}\n- 학습 주제: ${d.topic||"(미입력 — 학년 수준 대표 주제 자율)"}\n- 추가 요청: ${d.request||"없음"}`;}
 
-/* ---------- 문항 편집 ---------- */
-function deleteQuestion(i){ if(!confirm((i+1)+"번 문항을 삭제할까요?"))return; state.questions.splice(i,1); if(state.editing===i)state.editing=-1; renderQuestions(); }
-function editQuestion(i){ state.editing=(state.editing===i)?-1:i; renderQuestions(); }
-function cancelEdit(){ state.editing=-1; renderQuestions(); }
-function saveEdit(i){ const q=state.questions[i];
-  q.question=gv("edit-q-"+i); q.answer=gv("edit-a-"+i); q.explanation=gv("edit-e-"+i);
-  q.options=lines(gv("edit-o-"+i));
-  if(q.type==="이단계형"){
-    q.reasonPrompt=gv("edit-rp-"+i); q.reasons=lines(gv("edit-r-"+i)); q.reasonAnswer=gv("edit-ra-"+i); q.reasonMap=lines(gv("edit-rm-"+i));
-  }else{ q.optionMap=lines(gv("edit-m-"+i)); }
-  state.editing=-1; renderQuestions(); }
-function gv(id){ const el=document.getElementById(id); return el?el.value:""; }
-function lines(s){ s=(s||"").trim(); return s?s.split("\n").map(x=>x.trim()).filter(Boolean):[]; }
-function addBlank(){ state.questions.push({type:"이단계형",question:"",options:["① ","② ","③ ","④ "],answer:"",
-  reasonPrompt:"위와 같이 생각한 이유로 가장 알맞은 것은?",reasons:["① ","② ","③ ","④ "],reasonAnswer:"",reasonMap:["correct","","",""],optionMap:[],targets:[],concept:"",explanation:""});
-  state.editing=state.questions.length-1; renderQuestions(); }
+async function aiGenerate(d,count,mccount){
+  const sys="너는 대한민국 중학교 과학교육과 학생 오개념(misconception) 연구에 정통한 전문가야. 오직 JSON만 출력.";
+  const txt=`${ctxStr(d)}
 
-/* ---------- 렌더 ---------- */
-function esc(s){return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
-function idxByText(options, ans){ options=options||[];
-  for(const ch of (ans||"")){ const k=CIRCLED.indexOf(ch); if(k>=0&&k<options.length) return k; }
-  const na=normText(ans); if(!na) return -1; let best=-1;
-  options.forEach((o,i)=>{ if(normText(o)===na) best=i; });
-  if(best<0) options.forEach((o,i)=>{ if(na&&normText(o).includes(na)) best=i; }); return best; }
-function renderQuestions(){
-  const area=document.getElementById("qArea"), qa=document.getElementById("qrActions");
-  if(state.questions.length===0){ area.innerHTML=`<div class="empty"><div class="big">아직 생성된 문항이 없습니다</div><div>주제를 입력하고 <b>오개념 분석 · 이단계 문항 생성</b>을 눌러 보세요.</div></div>`; qa.style.display="none"; return; }
-  qa.style.display="flex";
-  const head=state.misconceptions.length?`<div class="h3row"><h2>이단계 진단 문항 <span style="color:var(--ink-faint);font-weight:600;font-size:13px">${state.questions.length}개</span></h2></div>`:"";
-  area.innerHTML=head+`<div class="qlist">${state.questions.map((q,i)=> state.editing===i?editCard(q,i):viewCard(q,i)).join("")}</div>`;
+[1단계·오개념 분석] 이 주제에서 해당 학년 학생이 흔히 갖는, 과학교육 문헌에서 반복적으로 보고되는 대표 오개념을 ${mccount}개. 없는 출처·논문 제목 지어내지 말 것. 각: id("M1"..), name(한 줄), description(어떻게·왜 오해하는지 1~2문장).
+
+[2단계·이단계형 문항] 위 오개념을 진단하는 이단계형 문항 ${count}개.
+- 1단계: 현상/상황 객관식(선택지 4개 ①~④, 정답 1개).
+- 2단계: '그렇게 생각한 이유' 객관식(선택지 4개). 정확히 1개만 옳은 이유, 나머지 오답은 각각 특정 오개념(M#) 반영.
+- reasonMap: 2단계 선택지 순서대로 "correct" 또는 오개념 id (길이 4, "correct" 정확히 1개).
+- 1·2단계 모두 맞아야 올바른 이해. 발문은 학생 수준·일상 상황 기반.
+
+JSON: {"misconceptions":[{"id":"M1","name":"","description":""}],"questions":[{"type":"이단계형","question":"","options":["① ","② ","③ ","④ "],"answer":"","reasonPrompt":"","reasons":["① ","② ","③ ","④ "],"reasonAnswer":"","reasonMap":["","correct","",""],"targets":["M1"],"concept":"","explanation":""}]}`;
+  const o=await geminiJSON([{text:txt}],sys);
+  return {misconceptions:(o.misconceptions||[]).map(normMc),questions:(o.questions||[]).map(normQ)};
 }
-function qHead(q,i,label){ return `<div class="q-head"><div class="q-titlewrap"><span class="q-num">${i+1}</span><span class="badge tier">${esc(label||q.type)}</span>${q.concept?`<span class="badge concept">${esc(q.concept)}</span>`:""}</div>
-  <div class="qbtns no-print"><button class="iconbtn" onclick="editQuestion(${i})">수정</button><button class="iconbtn del" onclick="deleteQuestion(${i})">삭제</button><button class="iconbtn" id="reg-${i}" onclick="regenerate(${i})">재출제</button></div></div>`; }
-function viewCard(q,i){
-  if(q.type!=="이단계형"){ // 하위호환(단일 객관식)
-    const opts=q.options.map((o,oi)=>{ const m=q.optionMap&&q.optionMap[oi]; const tag=m==="correct"?`<span class="otag correct">정답</span>`:(m?`<span class="otag">${esc(mcName(m))}</span>`:""); return `<li><span>${esc(o)}</span>${tag}</li>`; }).join("");
-    return `<div class="q">${qHead(q,i,"객관식")}<div><div class="q-question">${esc(q.question)}</div><ul class="opts">${opts}</ul>
-      <div class="answer-box"><b>정답</b> · ${esc(q.answer)||"—"}${q.explanation?`<span class="exp">${esc(q.explanation)}</span>`:""}</div></div></div>`;
-  }
-  const c1=idxByText(q.options,q.answer);
-  const opts1=q.options.map((o,oi)=>`<li><span>${esc(o)}</span>${oi===c1?`<span class="otag correct">정답</span>`:""}</li>`).join("");
-  const opts2=(q.reasons||[]).map((o,oi)=>{ const m=q.reasonMap&&q.reasonMap[oi]; const tag=m==="correct"?`<span class="otag correct">정답</span>`:(m?`<span class="otag">${esc(mcName(m))}</span>`:""); return `<li><span>${esc(o)}</span>${tag}</li>`; }).join("");
-  return `<div class="q">${qHead(q,i,"이단계형")}<div>
-    <div class="tier-label t1">1단계 · 현상</div><div class="q-question">${esc(q.question)}</div><ul class="opts">${opts1}</ul>
-    <div class="tier-label">2단계 · 이유</div><div class="q-question">${esc(q.reasonPrompt)}</div><ul class="opts">${opts2}</ul>
-    <div class="answer-box"><b>정답</b> · 1단계 ${esc(q.answer)||"—"} / 2단계 ${esc(q.reasonAnswer)||"—"}${q.explanation?`<span class="exp">${esc(q.explanation)}</span>`:""}</div></div></div>`;
+async function aiRegenFromMc(d,mcs,count){
+  const sys="너는 중학교 과학 오개념 진단 이단계형 출제 전문가야. 오직 JSON만 출력.";
+  const mcList=mcs.map(m=>`${m.id}: ${m.name} — ${m.description}`).join("\n");
+  const txt=`${ctxStr(d)}\n아래 고정 오개념만 사용(새로 만들지 말 것):\n${mcList}\n\n이단계형 문항 ${count}개. 각 문항 1단계(현상 4지,정답1)+2단계(이유 4지,정답1,오답은 위 오개념 반영). reasonMap은 2단계 순서대로 "correct" 또는 위 id.\nJSON: {"questions":[{"type":"이단계형","question":"","options":["① ","② ","③ ","④ "],"answer":"","reasonPrompt":"","reasons":["① ","② ","③ ","④ "],"reasonAnswer":"","reasonMap":["","correct","",""],"targets":["M1"],"concept":"","explanation":""}]}`;
+  const o=await geminiJSON([{text:txt}],sys);
+  return (o.questions||[]).map(normQ);
 }
-function editCard(q,i){
-  const common=`<div class="field"><label>1단계 발문(현상)</label><textarea id="edit-q-${i}">${esc(q.question)}</textarea></div>
-    <div class="field"><label>1단계 선택지 <span class="hint">한 줄에 하나씩</span></label><textarea id="edit-o-${i}">${esc(q.options.join("\n"))}</textarea></div>
-    <div class="field"><label>1단계 정답 <span class="hint">정답 선택지 내용</span></label><input id="edit-a-${i}" value="${esc(q.answer)}"></div>`;
-  const tier2 = q.type==="이단계형" ? `
-    <div class="field"><label>2단계 발문(이유)</label><textarea id="edit-rp-${i}">${esc(q.reasonPrompt)}</textarea></div>
-    <div class="field"><label>2단계 선택지 <span class="hint">한 줄에 하나씩</span></label><textarea id="edit-r-${i}">${esc((q.reasons||[]).join("\n"))}</textarea></div>
-    <div class="field"><label>2단계 진단표 <span class="hint">한 줄에 하나씩 · correct 또는 오개념 id(M1 등)</span></label><textarea id="edit-rm-${i}">${esc((q.reasonMap||[]).join("\n"))}</textarea></div>
-    <div class="field"><label>2단계 정답 <span class="hint">정답 이유 내용</span></label><input id="edit-ra-${i}" value="${esc(q.reasonAnswer)}"></div>`
-    : `<div class="field"><label>선택지별 진단 <span class="hint">correct 또는 오개념 id</span></label><textarea id="edit-m-${i}">${esc((q.optionMap||[]).join("\n"))}</textarea></div>`;
-  return `<div class="q"><div class="q-head"><div class="q-titlewrap"><span class="q-num">${i+1}</span><span class="badge">수정 중</span></div></div>
-    <div class="edit-grid">${common}${tier2}
-      <div class="field"><label>해설</label><textarea id="edit-e-${i}">${esc(q.explanation)}</textarea></div>
-      <div class="edit-actions"><button class="btn btn-primary" onclick="saveEdit(${i})">저장</button><button class="btn btn-ghost" onclick="cancelEdit()">취소</button></div></div></div>`;
+async function aiRegenOne(d,mcs,existing){
+  const sys="너는 중학교 과학 오개념 진단 이단계형 출제 전문가야. 오직 JSON만 출력.";
+  const mcList=mcs.map(m=>`${m.id}: ${m.name} — ${m.description}`).join("\n");
+  const txt=`${ctxStr(d)}\n오개념(이 id만 사용):\n${mcList}\n기존 문항:\n${existing}\n기존과 겹치지 않는 새 이단계형 문항 1개.\nJSON: {"question":{"type":"이단계형","question":"","options":["① ","② ","③ ","④ "],"answer":"","reasonPrompt":"","reasons":["① ","② ","③ ","④ "],"reasonAnswer":"","reasonMap":["","correct","",""],"targets":["M1"],"concept":"","explanation":""}}`;
+  const o=await geminiJSON([{text:txt}],sys);
+  return normQ(o.question||o);
 }
 
-/* ---------- 배포 + QR ---------- */
-function newCode(){ return Math.random().toString(36).slice(2,6).toUpperCase(); }
-function siteBase(){ return location.origin+location.pathname; }
-async function publishQuiz(){
-  const panel=document.getElementById("publishPanel"), body=document.getElementById("publishBody"); panel.style.display="block";
-  const c=getCfg();
-  if(!c.scriptUrl){ body.innerHTML=`<div class="warn">Apps Script URL이 없어요. 파일 상단 <b>SCRIPT_URL_HARDCODED</b>를 바꾸거나 ⚙ 설정에서 입력해 주세요.</div>`; return; }
-  body.innerHTML=`<div class="loading-note"><span class="spinner dark"></span> 문제를 서버에 저장하는 중…</div>`;
-  const code=newCode(); state.activeCode=code; const title=val("unit")||"오개념 진단평가";
-  // 학생용: 정답/오개념 매핑 제외, 2단계 발문·선택지는 포함
-  const studentQ=state.questions.map(q=>({type:q.type,question:q.question,options:q.options,reasonPrompt:q.reasonPrompt,reasons:q.reasons}));
-  localStorage.setItem("assess_key_"+code, JSON.stringify({questions:state.questions,misconceptions:state.misconceptions}));
-  localStorage.setItem("assess_active", code);
-  try{ const res=await apiPost({action:"publish",code,title,grade:val("grade"),questions:studentQ}); if(!res.ok) throw new Error(res.error||"서버 오류"); }
-  catch(err){ body.innerHTML=`<div class="errbar">배포 실패: ${esc(err.message)}<br>Apps Script가 "Anyone" 권한으로 배포됐는지 확인해 주세요.</div>`; return; }
-  const link=siteBase()+"#role=student&code="+code;
-  body.innerHTML=`<div class="infobar">배포 완료! 아래 QR을 학생에게 보여주세요. 스캔하면 <b>바로 풀이 화면</b>이 열립니다.</div>
-    <div style="margin-top:14px"><span class="codepill">참여 코드 ${code}</span></div>
-    <div class="qr-inner"><div class="qr-canvas-wrap"><canvas id="qrCanvas"></canvas></div>
-      <div class="qr-side"><h3 style="margin:0 0 8px">학생 안내용 QR</h3>
-        <p style="color:var(--ink-soft);font-size:13.5px;margin:0 0 12px;word-break:break-all">${esc(link)}</p>
-        <div class="qr-actions" style="margin-top:0"><button class="btn btn-ghost" onclick="copyText('${esc(link)}')">링크 복사</button><button class="btn btn-ghost" onclick="window.print()">인쇄 / PDF</button></div>
-      </div></div>`;
-  try{ new QRious({element:document.getElementById("qrCanvas"),value:link,size:240,level:"M",background:"#ffffff",foreground:"#17222B"}); }catch(e){ toast("QR 생성 실패 — 링크를 복사해 안내하세요"); }
-  panel.scrollIntoView({behavior:"smooth",block:"nearest"});
-}
-
-/* ---------- 학생 화면 ---------- */
-let studentQuiz=null;
-async function loadStudentQuiz(){
-  const body=document.getElementById("studentBody"); const c=getCfg();
-  if(!c.scriptUrl){ body.innerHTML=`<div class="card"><div class="warn">서버 주소가 설정되지 않았어요. 선생님이 안내한 QR/링크로 다시 들어와 주세요.</div></div>`; return; }
-  body.innerHTML=`<div class="loading-note"><span class="spinner dark"></span> 문제를 불러오는 중…</div>`;
-  let code=hashParams().get("code");
-  try{
-    if(!code){ const lc=await apiGet({action:"latestCode"}); code=lc.ok?lc.code:null; }
-    if(!code){ body.innerHTML=`<div class="empty"><div class="big">아직 배포된 문제가 없습니다</div><div>선생님이 문제를 배포하면 나타납니다.</div></div>`; return; }
-    const res=await apiGet({action:"getQuiz",code});
-    if(!res.ok){ body.innerHTML=`<div class="empty"><div class="big">문제를 찾을 수 없어요</div><div>참여 코드(${esc(code)})를 확인해 주세요.</div></div>`; return; }
-    studentQuiz=res.quiz; renderStudentForm();
-  }catch(err){ body.innerHTML=`<div class="card"><div class="errbar">불러오기 실패: ${esc(err.message)}</div></div>`; }
-}
-function renderStudentForm(){ const q=studentQuiz;
-  const items=q.questions.map((it,i)=>{
-    if(it.type==="이단계형"){
-      const t1=`<div class="tiergroup">`+it.options.map((o,oi)=>`<label class="s-opt" onclick="pick(${i},'t1',${oi},this)"><input type="radio" name="q${i}t1" value="${oi}"><span>${esc(o)}</span></label>`).join("")+`</div>`;
-      const t2=`<div class="tiergroup">`+(it.reasons||[]).map((o,oi)=>`<label class="s-opt" onclick="pick(${i},'t2',${oi},this)"><input type="radio" name="q${i}t2" value="${oi}"><span>${esc(o)}</span></label>`).join("")+`</div>`;
-      return `<div class="s-q"><div class="s-qhead"><span class="q-num">${i+1}</span><span class="badge tier">이단계형</span></div>
-        <div class="tier-label t1">1단계 · 어떻게 될까요?</div><div class="q-question">${esc(it.question)}</div>${t1}
-        <div class="tier-label">2단계 · 그렇게 생각한 이유는?</div><div class="q-question" style="font-weight:500">${esc(it.reasonPrompt||"")}</div>${t2}</div>`;
-    }
-    let input="";
-    if(it.type==="객관식"&&it.options.length){ input=`<div class="tiergroup">`+it.options.map((o,oi)=>`<label class="s-opt" onclick="pick(${i},'t1',${oi},this)"><input type="radio" name="q${i}" value="${oi}"><span>${esc(o)}</span></label>`).join("")+`</div>`; }
-    else if(it.type==="서술형"){ input=`<textarea id="ans-${i}" placeholder="답을 서술하세요"></textarea>`; }
-    else{ input=`<input id="ans-${i}" placeholder="답을 입력하세요">`; }
-    return `<div class="s-q"><div class="s-qhead"><span class="q-num">${i+1}</span><span class="badge">${esc(it.type)}</span></div><div class="q-question">${esc(it.question)}</div>${input}</div>`;
-  }).join("");
-  document.getElementById("studentBody").innerHTML=`
-    <div class="card"><div class="field"><label>학번 <span class="hint">예: 20304</span></label><input id="sid" placeholder="학번을 입력하세요" inputmode="numeric"></div>
-      <div style="margin-top:6px;color:var(--ink-soft);font-size:13px">${esc(q.title)} · 총 ${q.questions.length}문항</div></div>
-    ${items}<button class="btn btn-primary btn-lg" id="submitBtn" onclick="submitAnswers()">제출하기</button><div id="submitMsg"></div>`;
-  window.__sel={};
-}
-function pick(qi,tier,oi,el){ window.__sel[qi]=window.__sel[qi]||{}; window.__sel[qi][tier]=oi;
-  const grp=el.closest(".tiergroup")||el.parentNode; grp.querySelectorAll(".s-opt").forEach(x=>x.classList.remove("sel")); el.classList.add("sel"); }
-function sanitizeId(s){ return (s||"").trim().replace(/[\s\/\\'"]+/g,"").replace(/[^0-9A-Za-z가-힣_-]/g,""); }
-async function submitAnswers(){
-  const sid=sanitizeId(document.getElementById("sid").value), msg=document.getElementById("submitMsg");
-  if(!sid){ msg.innerHTML=`<div class="warn">학번을 입력해 주세요.</div>`; return; }
-  const answers=studentQuiz.questions.map((it,i)=>{ const s=window.__sel[i]||{};
-    if(it.type==="이단계형") return {qIndex:i,type:it.type,selectedIndex:(s.t1!=null?s.t1:-1),reasonIndex:(s.t2!=null?s.t2:-1),text:""};
-    if(it.type==="객관식"&&it.options.length) return {qIndex:i,type:it.type,selectedIndex:(s.t1!=null?s.t1:-1),reasonIndex:-1,text:s.t1!=null?it.options[s.t1]:""};
-    const el=document.getElementById("ans-"+i); return {qIndex:i,type:it.type,selectedIndex:-1,reasonIndex:-1,text:el?el.value.trim():""}; });
-  const btn=document.getElementById("submitBtn"); btn.disabled=true; btn.innerHTML=`<span class="spinner"></span> 제출 중…`;
-  try{ const res=await apiPost({action:"submit",code:studentQuiz.code,studentId:sid,answers}); if(!res.ok) throw new Error(res.error||"서버 오류");
-    document.getElementById("studentBody").innerHTML=`<div class="card done-card"><div class="check">✓</div><h2 style="margin:0 0 6px;font-size:20px">제출 완료</h2>
-      <p style="color:var(--ink-soft);margin:0 0 16px">학번 <b>${esc(sid)}</b> · ${studentQuiz.questions.length}문항 제출됨</p>
-      <button class="btn btn-ghost" onclick="renderStudentForm()">다시 풀기 / 수정 제출</button></div>`;
-  }catch(err){ btn.disabled=false; btn.textContent="제출하기"; msg.innerHTML=`<div class="errbar">제출 실패: ${esc(err.message)}</div>`; }
-}
-
-/* ---------- 채점 & 오개념 집계 ---------- */
-function normText(s){ return (s||"").toString().trim().toLowerCase().replace(/[①-⑨]/g,"").replace(/^[0-9]+[.)]\s*/,"").replace(/\s+/g,"").replace(/[.,!?·、。]/g,""); }
-function reasonCorrectIdx(q){ return Array.isArray(q.reasonMap)?q.reasonMap.findIndex(m=>m==="correct"):-1; }
-function gradeSubmission(key, sub){
+/* ── 채점 ── */
+function normText(s){return (s||"").toString().trim().toLowerCase().replace(/[①-⑨]/g,"").replace(/^[0-9]+[.)]\s*/,"").replace(/\s+/g,"").replace(/[.,!?·、。]/g,"");}
+function idxByText(options,ans){options=options||[];for(const ch of (ans||"")){const k=CIRCLED.indexOf(ch);if(k>=0&&k<options.length)return k;}const na=normText(ans);if(!na)return -1;let best=-1;options.forEach((o,i)=>{if(normText(o)===na)best=i;});if(best<0)options.forEach((o,i)=>{if(na&&normText(o).includes(na))best=i;});return best;}
+function gradeSub(key,sub){
   const mcHeld={};
-  const marks=key.questions.map((q,i)=>{
+  const marks=(key.questions||[]).map((q,i)=>{
     const a=(sub.answers||[]).find(x=>x.qIndex===i);
-    if(q.type==="이단계형"){
-      const t1=a?a.selectedIndex:-1, t2=(a&&a.reasonIndex!=null)?a.reasonIndex:-1;
-      if(t1<0||t2<0) return "N";
-      const c1=idxByText(q.options,q.answer);
-      const m2=Array.isArray(q.reasonMap)?q.reasonMap[t2]:null;
-      if(m2&&m2!=="correct") mcHeld[m2]=(mcHeld[m2]||0)+1;
-      return (t1===c1 && m2==="correct") ? "O" : "X";
-    }
-    if(q.type==="서술형") return "R";
-    if(q.type==="객관식"&&(q.options||[]).length){
-      if(!a||a.selectedIndex<0) return "N";
-      const m=Array.isArray(q.optionMap)?q.optionMap[a.selectedIndex]:null;
-      if(m==="correct") return "O";
-      if(m){ mcHeld[m]=(mcHeld[m]||0)+1; return "X"; }
-      const ci=idxByText(q.options,q.answer); return (ci>=0&&a.selectedIndex===ci)?"O":"X";
-    }
-    if(!a||!a.text) return "N";
-    const na=normText(q.answer), ns=normText(a.text); if(!na) return "R";
-    return (ns===na||(na.length>=2&&ns.includes(na)))?"O":"X";
+    const t1=a?a.selectedIndex:-1, t2=(a&&a.reasonIndex!=null)?a.reasonIndex:-1;
+    if(t1<0||t2<0)return "N";
+    const c1=idxByText(q.options,q.answer);
+    const m2=Array.isArray(q.reasonMap)?q.reasonMap[t2]:null;
+    if(m2&&m2!=="correct")mcHeld[m2]=(mcHeld[m2]||0)+1;
+    return (t1===c1&&m2==="correct")?"O":"X";
   });
   return {marks,mcHeld};
 }
-function relatedQs(key,id){ return key.questions.map((q,i)=>{ const ids=[].concat(q.reasonMap||[],q.optionMap||[]); return ids.includes(id)?(i+1):null; }).filter(Boolean); }
-function loadAnswerKey(){
-  if(state.questions.length&&state.questions.some(q=>q.answer||q.reasonMap.length||q.optionMap.length)) return {questions:state.questions,misconceptions:state.misconceptions};
-  let code=state.activeCode||localStorage.getItem("assess_active"); if(!code) return null; state.activeCode=code;
-  try{ const raw=localStorage.getItem("assess_key_"+code); if(!raw) return null; const p=JSON.parse(raw);
-    return Array.isArray(p)?{questions:p.map(normalize),misconceptions:[]}:{questions:(p.questions||[]).map(normalize),misconceptions:p.misconceptions||[]}; }catch(e){ return null; }
+function relatedQs(key,id){return (key.questions||[]).map((q,i)=>((q.reasonMap||[]).includes(id)?(i+1):null)).filter(Boolean);}
+function mcNameFrom(key,id){const m=(key.misconceptions||[]).find(x=>x.id===id);return m?m.name:id;}
+
+/* ── DB (/misdx) ── */
+const DB={
+  async listQuiz(uid){try{const r=await fetch(`${FB}/misdx/quizzes/${uid}.json`);const d=await r.json();if(!d)return[];return Object.values(d).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));}catch{return[];}},
+  async saveQuiz(uid,quiz,key){
+    await fetch(`${FB}/misdx/quizzes/${uid}/${quiz.id}.json`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(quiz)});
+    await fetch(`${FB}/misdx/keys/${uid}/${quiz.id}.json`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(key)});
+  },
+  async delQuiz(uid,id){await fetch(`${FB}/misdx/quizzes/${uid}/${id}.json`,{method:"DELETE"});await fetch(`${FB}/misdx/keys/${uid}/${id}.json`,{method:"DELETE"});await fetch(`${FB}/misdx/results/${uid}/${id}.json`,{method:"DELETE"});},
+  async findById(id){try{const r=await fetch(`${FB}/misdx/quizzes.json`);const d=await r.json();if(!d)return null;for(const uid of Object.keys(d))if(d[uid][id])return {...d[uid][id],_ownerUid:uid};return null;}catch{return null;}},
+  async findByCode(code){try{const r=await fetch(`${FB}/misdx/quizzes.json`);const d=await r.json();if(!d)return null;for(const uid of Object.keys(d))for(const id of Object.keys(d[uid]))if(shortCode(id)===code.toUpperCase())return {...d[uid][id],_ownerUid:uid};return null;}catch{return null;}},
+  async getKey(uid,id){try{const r=await fetch(`${FB}/misdx/keys/${uid}/${id}.json`);return await r.json();}catch{return null;}},
+  async getResults(uid,id){try{const r=await fetch(`${FB}/misdx/results/${uid}/${id}.json`);const d=await r.json();if(!d)return[];return Object.values(d);}catch{return[];}},
+  async setResult(uid,id,data){const k=(data.studentId||"").replace(/[.#$/[\]\s]/g,"_");const res=await fetch(`${FB}/misdx/results/${uid}/${id}/${k}.json`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)});if(!res.ok)throw new Error("저장 실패: "+res.status);return res.json();}
+};
+
+/* ── 공통 UI ── */
+function Center({children}){return <div style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:"100vh",background:PAPER,padding:16}}>{children}</div>;}
+function Empty({icon,text}){return <div style={{textAlign:"center",padding:52,color:"#94A3B8"}}><div style={{fontSize:34,marginBottom:10}}>{icon}</div><div style={{fontSize:14}}>{text}</div></div>;}
+function Err({msg}){return msg?<div style={{background:"#FCEEEC",border:"1px solid #E6C3BD",color:"#8F3B33",borderRadius:9,padding:"11px 14px",fontSize:13,marginTop:10}}>{msg}</div>:null;}
+function Loading({label}){return <span><span className="spin" style={{marginRight:8}}></span>{label}</span>;}
+function Badge({children,bg,col}){return <span style={{fontSize:11,fontWeight:700,padding:"2px 9px",borderRadius:20,background:bg,color:col}}>{children}</span>;}
+function QRImage({url}){const ref=useRef(null);useEffect(()=>{if(!url||!ref.current)return;ref.current.innerHTML="";const gen=()=>new window.QRCode(ref.current,{text:url,width:200,height:200,correctLevel:window.QRCode.CorrectLevel.M});window.QRCode?gen():(()=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js";s.onload=gen;document.head.appendChild(s);})();},[url]);return <div ref={ref} style={{lineHeight:0}}/>;}
+
+/* ══════════ ROOT ══════════ */
+function App(){
+  const [mode,setMode]=useState("loading"),[sQuiz,setSQuiz]=useState(null),[user,setUser]=useState(null);
+  useEffect(()=>{(async()=>{
+    const q=new URLSearchParams(location.search);const id=q.get("id"),code=q.get("code");
+    if(id){const a=await DB.findById(id);if(a){setSQuiz(a);setMode("student");return;}}
+    if(code){const a=await DB.findByCode(code);if(a){setSQuiz(a);setMode("student");return;}}
+    await loadGeminiKey();
+    let w=0;while((typeof firebase==="undefined"||!firebase.auth)&&w<8000){await new Promise(r=>setTimeout(r,100));w+=100;}
+    if(typeof firebase!=="undefined"&&firebase.auth){firebase.auth().onAuthStateChanged(u=>{if(u&&u.isAnonymous)return;setUser(u);setMode(u?"teacher":"login");});}
+    else setMode("login");
+  })();},[]);
+  if(mode==="loading")return <Center><div style={{color:"#94A3B8"}}>로딩 중…</div></Center>;
+  if(mode==="student")return <StudentPage quiz={sQuiz}/>;
+  if(mode==="login")return <LoginPage/>;
+  return <TeacherApp user={user}/>;
 }
 
-let lastGrade=null;
-async function renderResults(){
-  const area=document.getElementById("resultArea");
-  const key=loadAnswerKey();
-  if(!key||!key.questions.length){ area.innerHTML=`<div class="empty"><div class="big">확인할 결과가 없습니다</div><div>문항을 만들어 <b>QR 코드 생성</b>으로 배포하면 오개념 현황이 모입니다.</div></div>`; return; }
-  const code=state.activeCode;
-  area.innerHTML=`<div class="loading-note"><span class="spinner dark"></span> 제출 결과를 불러오는 중…</div>`;
-  let subs=[];
-  try{ const res=await apiGet({action:"getResults",code}); subs=res.ok?(res.submissions||[]):[]; }
-  catch(err){ area.innerHTML=`<div class="errbar">결과 불러오기 실패: ${esc(err.message)}</div>`; return; }
-  subs.sort((a,b)=>(a.studentId>b.studentId?1:-1));
-  const qCount=key.questions.length;
-  const rows=subs.map(s=>{ const g=gradeSubmission(key,s);
-    const gradable=g.marks.filter(m=>m==="O"||m==="X"||m==="N").length, correct=g.marks.filter(m=>m==="O").length;
-    const mcNames=Object.keys(g.mcHeld).map(id=>mcNameFrom(key,id));
-    return {studentId:s.studentId,time:fmtTime(s.submittedAt),marks:g.marks,mcHeld:g.mcHeld,mcNames,gradable,correct,rate:gradable?Math.round(correct/gradable*100):0}; });
-  const mcStats=key.misconceptions.map(mc=>{ const withIt=rows.filter(r=>r.mcHeld[mc.id]).length;
-    return {id:mc.id,name:mc.name,description:mc.description,count:withIt,pct:rows.length?Math.round(withIt/rows.length*100):0,qNums:relatedQs(key,mc.id)}; }).sort((a,b)=>b.count-a.count);
-  const perQ=key.questions.map((q,i)=>{ const ms=rows.map(r=>r.marks[i]); const g=ms.filter(m=>m==="O"||m==="X"||m==="N").length,o=ms.filter(m=>m==="O").length; return {o,g,rate:g?Math.round(o/g*100):null}; });
-  lastGrade={rows,mcStats,perQ,qCount,key,code};
-
-  if(subs.length===0){ area.innerHTML=resultHeader(code,0,qCount,key.misconceptions.length)+`<div class="empty"><div class="big">아직 제출한 학생이 없습니다</div><div>학생이 제출하면 <b>새로고침</b>을 눌러 확인하세요.</div></div>`; return; }
-
-  const mcRows=mcStats.map(m=>`<tr><td class="sid">${esc(m.id)}</td><td class="mcname">${esc(m.name)}<div style="font-weight:400;color:var(--ink-faint);font-size:12px">${esc(m.description)}</div></td>
-    <td><b>${m.count}</b>명</td><td>${m.pct}%<div class="barwrap"><span class="bar" style="width:${m.pct}%"></span></div></td><td>${m.qNums.join(", ")||"—"}</td></tr>`).join("");
-  const mcTable=key.misconceptions.length?`<div class="h3row"><h2>🧠 오개념 현황 <span style="color:var(--ink-faint);font-weight:600;font-size:13px">보유 학생 많은 순</span></h2></div>
-    <div class="tablewrap"><table><thead><tr><th>ID</th><th>오개념</th><th>보유 학생</th><th>비율</th><th>관련 문항</th></tr></thead><tbody>${mcRows}</tbody></table></div>`:"";
-
-  const headCells=`<th>학번</th><th>제출시각</th>${key.questions.map((q,i)=>`<th>${i+1}번<div class="qrate">${perQ[i].rate!=null?perQ[i].rate+"%":"검토"}</div></th>`).join("")}<th>정답수</th><th>보유 오개념</th>`;
-  const bodyRows=rows.map(r=>`<tr><td class="sid">${esc(r.studentId)}</td><td>${esc(r.time)}</td>${r.marks.map(m=>`<td>${markCell(m)}</td>`).join("")}
-    <td><b>${r.correct}/${r.gradable}</b></td><td class="mcname" style="font-size:12px">${r.mcNames.length?esc(r.mcNames.join(", ")):"<span style='color:var(--ink-faint)'>—</span>"}</td></tr>`).join("");
-  const stTable=`<div class="h3row"><h2>👩‍🎓 학생별 응답</h2></div><div class="tablewrap"><table><thead><tr>${headCells}</tr></thead><tbody>${bodyRows}</tbody></table></div>
-    <div class="warn" style="margin-top:14px">O 올바른 이해(1·2단계 모두 정답) · X 오답(2단계 이유에 오개념 반영) · <span class="mark-n">·</span> 미응답. 오개념은 2단계 '이유' 선택으로 진단됩니다.</div>`;
-
-  area.innerHTML=resultHeader(code,subs.length,qCount,key.misconceptions.length)+mcTable+stTable;
-}
-function mcNameFrom(key,id){ const m=(key.misconceptions||[]).find(x=>x.id===id); return m?m.name:id; }
-function resultHeader(code,n,qc,mc){
-  const topMc=lastGrade&&lastGrade.mcStats&&lastGrade.mcStats.length&&lastGrade.mcStats[0].count?lastGrade.mcStats[0].name:"—";
-  return `<div class="card" style="margin-bottom:8px"><div class="h3row" style="margin:0 0 16px"><h2>오개념 진단 결과 <span class="codepill" style="font-size:14px;padding:4px 10px;margin-left:8px">코드 ${code||"—"}</span></h2>
-      <div class="qr-actions no-print" style="margin:0"><button class="btn btn-ghost" onclick="renderResults()">새로고침</button><button class="btn btn-primary" onclick="downloadExcel()">엑셀 다운로드</button></div></div>
-    <div class="stats"><div class="stat"><div class="n">${n}</div><div class="l">제출 인원</div></div>
-      <div class="stat"><div class="n">${mc}</div><div class="l">진단 오개념</div></div>
-      <div class="stat"><div class="n" style="font-size:15px;padding-top:6px">${esc(topMc)}</div><div class="l">가장 흔한 오개념</div></div></div></div>`;
-}
-function markCell(m){ if(m==="O")return `<span class="mark-o">O</span>`; if(m==="X")return `<span class="mark-x">X</span>`; if(m==="R")return `<span class="mark-r">검토</span>`; return `<span class="mark-n">·</span>`; }
-function fmtTime(iso){ try{ const d=new Date(iso); return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`; }catch(e){ return ""; } }
-
-/* ---------- 엑셀 ---------- */
-function downloadExcel(){
-  if(!lastGrade||!lastGrade.rows.length){ toast("다운로드할 제출 결과가 없어요"); return; }
-  const {rows,mcStats,perQ,qCount,key,code}=lastGrade; const title=val("unit")||"오개념진단";
-  const h1=["학번","제출시각",...Array.from({length:qCount},(_,i)=>`${i+1}번`),"정답수","보유 오개념"];
-  const a1=[h1]; rows.forEach(r=>a1.push([r.studentId,r.time,...r.marks.map(m=>({O:"O",X:"X",R:"검토",N:"미응답"}[m])),r.correct,r.mcNames.join(", ")]));
-  const a2=[["ID","오개념","설명","보유 학생 수","비율(%)","관련 문항"]]; mcStats.forEach(m=>a2.push([m.id,m.name,m.description,m.count,m.pct,m.qNums.join(", ")]));
-  const a3=[["문항","정답률(%)","정답 인원","응답 인원"]]; key.questions.forEach((q,i)=>a3.push([`${i+1}번`,perQ[i].rate!=null?perQ[i].rate:"검토",perQ[i].o,perQ[i].g]));
-  if(typeof XLSX==="undefined"){ const csv="\uFEFF"+a1.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(",")).join("\n");
-    const b=new Blob([csv],{type:"text/csv"}),u=URL.createObjectURL(b),a=document.createElement("a"); a.href=u;a.download=`오개념진단_${title}.csv`;a.click();URL.revokeObjectURL(u); toast("CSV로 내려받았어요"); return; }
-  const wb=XLSX.utils.book_new();
-  const w1=XLSX.utils.aoa_to_sheet(a1); w1["!cols"]=h1.map((_,i)=>({wch:i===h1.length-1?28:9})); XLSX.utils.book_append_sheet(wb,w1,"학생별 결과");
-  const w2=XLSX.utils.aoa_to_sheet(a2); w2["!cols"]=[{wch:6},{wch:20},{wch:40},{wch:12},{wch:9},{wch:12}]; XLSX.utils.book_append_sheet(wb,w2,"오개념 현황");
-  const w3=XLSX.utils.aoa_to_sheet(a3); w3["!cols"]=[{wch:7},{wch:10},{wch:9},{wch:9}]; XLSX.utils.book_append_sheet(wb,w3,"문항별 정답률");
-  XLSX.writeFile(wb,`오개념진단_${title}_${code||""}.xlsx`); toast("엑셀 파일을 내려받았어요");
+/* ══════════ 로그인 ══════════ */
+function LoginPage(){
+  const [view,setView]=useState("main"),[code,setCode]=useState(""),[err,setErr]=useState(""),[busy,setBusy]=useState(false);
+  const login=async()=>{let w=0;while((typeof firebase==="undefined"||!firebase.auth)&&w<5000){await new Promise(r=>setTimeout(r,200));w+=200;}if(typeof firebase==="undefined"||!firebase.auth){alert("로그인 연결 실패. 새로고침(F5) 후 시도하세요.");return;}try{await firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider());}catch(e){alert("로그인 오류: "+e.message);}};
+  const enter=async()=>{const c=code.replace("#","").trim().toUpperCase();if(c.length!==6){setErr("입장 코드는 6자리입니다.");return;}setBusy(true);setErr("");const a=await DB.findByCode(c);if(!a){setErr("존재하지 않는 코드입니다.");setBusy(false);return;}location.search=`?code=${c}`;};
+  if(view==="student")return(
+    <Center><div style={{background:"#fff",borderRadius:20,padding:36,width:380,boxShadow:"0 16px 48px rgba(16,52,34,.12)",textAlign:"center"}}>
+      <div style={{fontSize:44,marginBottom:10}}>🎓</div><h1 style={{fontSize:21,fontWeight:900,color:GR,marginBottom:8}}>학생 입장</h1>
+      <p style={{color:MUT,fontSize:13,marginBottom:22}}>선생님이 준 6자리 입장 코드를 입력하세요</p>
+      <input value={code} onChange={e=>{setCode(e.target.value.toUpperCase());setErr("");}} onKeyDown={e=>e.key==="Enter"&&!busy&&enter()} placeholder="A3F2B1" maxLength={6} autoFocus disabled={busy} style={{...inp,fontSize:26,textAlign:"center",fontWeight:900,letterSpacing:6,padding:16,borderColor:err?"#FCA5A5":LINE}}/>
+      <Err msg={err}/>
+      <button onClick={enter} disabled={busy} style={btn(busy?"#94A3B8":GR,"#fff",{width:"100%",padding:14,marginTop:12})}>{busy?"확인 중…":"입장하기"}</button>
+      <button onClick={()=>{setView("main");setCode("");setErr("");}} style={{width:"100%",padding:11,background:"none",border:"none",color:MUT,fontSize:13,cursor:"pointer",marginTop:4,fontWeight:600}}>← 뒤로</button>
+    </div></Center>
+  );
+  return(
+    <Center><div style={{background:"#fff",borderRadius:20,padding:38,width:400,boxShadow:"0 16px 48px rgba(16,52,34,.12)",textAlign:"center"}}>
+      <div style={{fontSize:42,marginBottom:10}}>🧠</div>
+      <h1 style={{fontSize:23,fontWeight:900,color:GR,marginBottom:6,lineHeight:1.3}}>AI 오개념 진단평가<br/><span style={{fontSize:15,color:PUR}}>이단계형(two-tier)</span></h1>
+      <p style={{color:MUT,fontSize:13,marginBottom:26,lineHeight:1.6}}>주제의 대표 오개념 분석 → 현상+이유 이단계 문항 → QR 배포 → 오개념 현황 집계</p>
+      <button onClick={login} style={{width:"100%",padding:14,background:"#fff",border:"1px solid "+LINE,borderRadius:10,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:12,fontSize:15,fontWeight:600,color:"#334155",marginBottom:10}}>
+        <svg width="19" height="19" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+        교사 — Google 로그인
+      </button>
+      <button onClick={()=>setView("student")} style={btn(GR,"#fff",{width:"100%",padding:14,display:"flex",alignItems:"center",justifyContent:"center",gap:10,fontSize:15})}><span style={{fontSize:17}}>🎓</span> 학생 — 입장 코드로 참여</button>
+    </div></Center>
+  );
 }
 
-/* ---------- 유틸 ---------- */
-function setGenLoading(on,label){ const btn=document.getElementById("genBtn"); btn.disabled=on;
-  if(on){ btn.innerHTML=`<span class="spinner"></span><span>${label||"오개념 분석 · 문항 생성 중…"}</span>`;
-    if(state.questions.length===0) document.getElementById("qArea").innerHTML=`<div class="loading-note"><span class="spinner dark"></span> AI가 오개념을 분석하고 이단계 진단 문항을 만드는 중이에요…</div>`;
-  }else{ btn.innerHTML=`<span id="genLabel">오개념 분석 · 이단계 문항 생성</span>`; } }
-function showError(msg){ document.getElementById("genError").innerHTML=msg?`<div class="errbar">${esc(msg)}</div>`:""; }
-function copyText(t){ navigator.clipboard.writeText(t).then(()=>toast("복사했어요"),()=>toast("복사 실패")); }
-let toastT;
-function toast(m){ let el=document.getElementById("__toast");
-  if(!el){ el=document.createElement("div"); el.id="__toast"; el.style.cssText="position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:22px;font-size:13.5px;font-weight:600;z-index:99;box-shadow:0 6px 20px rgba(0,0,0,.18);transition:opacity .2s"; document.body.appendChild(el); }
-  el.textContent=m; el.style.opacity="1"; clearTimeout(toastT); toastT=setTimeout(()=>el.style.opacity="0",1800); }
+/* ══════════ 교사 앱 ══════════ */
+function TeacherApp({user}){
+  const [tab,setTab]=useState("make");
+  const [quizzes,setQuizzes]=useState([]),[ready,setReady]=useState(false),[menu,setMenu]=useState(false),[keyOK,setKeyOK]=useState(!!CFG.key);
+  useEffect(()=>{DB.listQuiz(user.uid).then(a=>{setQuizzes(a);setReady(true);});},[user.uid]);
+  const reload=async()=>{const a=await DB.listQuiz(user.uid);setQuizzes(a);};
+  const logout=async()=>{await firebase.auth().signOut();location.reload();};
+  const TABS=[["make","✏️ 출제"],["library","📚 목록·공유"],["results","📊 오개념 결과"]];
+  return(
+    <div style={{minHeight:"100vh",background:PAPER}}>
+      <header style={{background:GR,color:"#fff",padding:"0 18px",display:"flex",alignItems:"center",justifyContent:"space-between",height:54}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}><span style={{fontSize:16,fontWeight:900}}>AI 오개념 진단평가</span><span style={{height:15,width:1,background:"rgba(255,255,255,.3)"}}/><span style={{fontSize:12,opacity:.75}}>이단계형 · 교사</span></div>
+        <div style={{position:"relative"}}>
+          <button onClick={()=>setMenu(!menu)} style={{display:"flex",alignItems:"center",gap:8,background:"rgba(255,255,255,.15)",border:"none",borderRadius:20,padding:"4px 12px 4px 4px",cursor:"pointer",color:"#fff"}}>{user.photoURL?<img src={user.photoURL} alt="" style={{width:26,height:26,borderRadius:"50%"}}/>:<div style={{width:26,height:26,borderRadius:"50%",background:"rgba(255,255,255,.3)",display:"flex",alignItems:"center",justifyContent:"center"}}>👤</div>}<span style={{fontSize:12,fontWeight:600}}>{user.displayName||"선생님"}</span></button>
+          {menu&&<div style={{position:"absolute",top:"110%",right:0,background:"#fff",borderRadius:10,boxShadow:"0 8px 24px rgba(0,0,0,.15)",minWidth:200,zIndex:100,overflow:"hidden"}}><div style={{padding:"12px 14px",borderBottom:"1px solid "+LINE}}><div style={{fontSize:13,fontWeight:700,color:INK}}>{user.displayName}</div><div style={{fontSize:11,color:MUT,marginTop:2}}>{user.email}</div></div><button onClick={logout} style={{width:"100%",padding:"11px 14px",border:"none",background:"none",cursor:"pointer",textAlign:"left",fontSize:13,color:"#DC2626",fontWeight:600}}>🚪 로그아웃</button></div>}
+        </div>
+      </header>
+      <div style={{background:"#fff",borderBottom:"1px solid "+LINE,display:"flex",paddingLeft:10,overflowX:"auto"}}>
+        {TABS.map(([id,l])=><button key={id} onClick={()=>setTab(id)} style={{padding:"12px 16px",border:"none",background:"none",cursor:"pointer",fontWeight:tab===id?700:500,fontSize:13,color:tab===id?GR:MUT,borderBottom:tab===id?"2px solid "+GR:"2px solid transparent",whiteSpace:"nowrap"}}>{l}</button>)}
+      </div>
+      <main style={{maxWidth:980,margin:"0 auto",padding:"22px 18px 60px"}}>
+        {!keyOK&&<KeyBanner onSet={()=>setKeyOK(!!CFG.key)}/>}
+        {!ready?<Empty icon="⏳" text="로딩 중…"/>:<>
+          {tab==="make"&&<MakeTab uid={user.uid} onSaved={()=>{reload();setTab("library");}}/>}
+          {tab==="library"&&<LibraryTab quizzes={quizzes} uid={user.uid} onChange={reload}/>}
+          {tab==="results"&&<ResultsTab quizzes={quizzes} uid={user.uid}/>}
+        </>}
+      </main>
+    </div>
+  );
+}
+function KeyBanner({onSet}){
+  const [k,setK]=useState("");
+  const save=async()=>{if(!k.trim())return;CFG.key=k.trim();try{await fetch(FB+"/config/geminiKey.json",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(k.trim())});}catch{}onSet();};
+  return <div style={{...card,background:"#FEF9E7",border:"1px solid "+PARL}}>
+    <div style={{fontWeight:700,fontSize:13,color:"#8A6D1B",marginBottom:8}}>Gemini API 키가 필요합니다 (Firebase에 없거나 로드 실패). 한 번만 입력하면 저장됩니다.</div>
+    <div style={{display:"flex",gap:8,flexWrap:"wrap"}}><input value={k} onChange={e=>setK(e.target.value)} placeholder="AIza..." style={{...inp,flex:1,minWidth:220}}/><button onClick={save} style={btn(GR,"#fff")}>저장</button></div>
+  </div>;
+}
 
-applyRole();
-window.addEventListener("hashchange",()=>{ role=detectRole(); applyRole(); });
+/* ── 출제 탭 ── */
+function MakeTab({uid,onSaved}){
+  const blank={curriculum:"2022 개정 교육과정",grade:"중학교 2학년",topic:"",request:"",count:5,mccount:5};
+  const [f,setF]=useState(blank),[mcs,setMcs]=useState([]),[qs,setQs]=useState([]),[busy,setBusy]=useState(""),[err,setErr]=useState("");
+  const [title,setTitle]=useState(""),[saved,setSaved]=useState(null),[mcEdit,setMcEdit]=useState(-1),[qEdit,setQEdit]=useState(-1);
+  const set=(k,v)=>setF(p=>({...p,[k]:v}));
+
+  const gen=async()=>{if(!CFG.key){setErr("Gemini 키가 없습니다. 위 배너에서 입력하세요.");return;}
+    setErr("");setBusy("gen");
+    try{const {misconceptions,questions}=await aiGenerate(f,Math.max(1,Math.min(12,+f.count||5)),Math.max(3,Math.min(8,+f.mccount||5)));
+      setMcs(misconceptions);setQs(questions);setSaved(null);if(!title)setTitle((f.topic||"오개념 진단")+" 진단");}
+    catch(e){setErr(e.message);}setBusy("");};
+  const regenAllFromMc=async()=>{if(!mcs.length){setErr("먼저 오개념을 분석하세요.");return;}setErr("");setBusy("regenAll");
+    try{setQs(await aiRegenFromMc(f,mcs,Math.max(1,Math.min(12,+f.count||5))));}catch(e){setErr(e.message);}setBusy("");};
+  const regenOne=async i=>{setErr("");setBusy("q"+i);
+    try{const existing=qs.map((q,idx)=>(idx+1)+". "+q.question).join("\n");const nq=await aiRegenOne(f,mcs,existing);setQs(qs.map((q,idx)=>idx===i?nq:q));}catch(e){setErr(e.message);}setBusy("");};
+
+  const mcNm=id=>{const m=mcs.find(x=>x.id===id);return m?m.name:id;};
+  const save=async()=>{if(!title.trim()){setErr("평가 제목을 입력하세요.");return;}if(!qs.length){setErr("먼저 문항을 생성하세요.");return;}
+    setBusy("save");setErr("");
+    try{
+      const id=Date.now().toString();
+      const quiz={id,ownerUid:uid,title:title.trim(),curriculum:f.curriculum,grade:f.grade,topic:f.topic,createdAt:now(),
+        questions:qs.map(q=>({type:q.type,question:q.question,options:q.options,reasonPrompt:q.reasonPrompt,reasons:q.reasons}))};
+      const key={misconceptions:mcs,questions:qs};
+      await DB.saveQuiz(uid,quiz,key);
+      onSaved();
+    }catch(e){setErr("저장 실패: "+e.message+" (Firebase 규칙에서 misdx 경로 쓰기가 허용됐는지 확인)");}
+    setBusy("");
+  };
+
+  return(
+    <div>
+      <div style={card}>
+        <h2 style={{fontSize:16,fontWeight:800,marginBottom:14}}>① 주제 · 조건</h2>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
+          <div><label style={lab}>교육과정</label><select style={inp} value={f.curriculum} onChange={e=>set("curriculum",e.target.value)}><option>2022 개정 교육과정</option><option>2015 개정 교육과정</option></select></div>
+          <div><label style={lab}>학년</label><select style={inp} value={f.grade} onChange={e=>set("grade",e.target.value)}><option>중학교 1학년</option><option>중학교 2학년</option><option>중학교 3학년</option></select></div>
+          <div style={{gridColumn:"1 / -1"}}><label style={lab}>학습 주제 / 단원 *</label><input style={inp} placeholder="예: 마찰전기와 정전기 유도" value={f.topic} onChange={e=>set("topic",e.target.value)}/></div>
+          <div><label style={lab}>문항 수</label><input type="number" min={1} max={12} style={inp} value={f.count} onChange={e=>set("count",e.target.value)}/></div>
+          <div><label style={lab}>오개념 개수</label><input type="number" min={3} max={8} style={inp} value={f.mccount} onChange={e=>set("mccount",e.target.value)}/></div>
+          <div style={{gridColumn:"1 / -1"}}><label style={lab}>AI에게 요청</label><textarea style={{...inp,height:52,resize:"vertical"}} placeholder="예: 정전기 유도와 마찰전기를 혼동하는 오개념 포함, 일상 상황으로." value={f.request} onChange={e=>set("request",e.target.value)}/></div>
+        </div>
+        <button onClick={gen} disabled={!!busy} style={btn(PUR,"#fff")}>{busy==="gen"?<Loading label="오개념 분석 · 이단계 문항 생성 중…"/>:"오개념 분석 · 이단계 문항 생성 (AI)"}</button>
+        <Err msg={err}/>
+      </div>
+
+      {mcs.length>0&&<div style={card}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,flexWrap:"wrap",marginBottom:10}}>
+          <h2 style={{fontSize:16,fontWeight:800}}>📚 주요 오개념 분석 <span style={{fontWeight:400,fontSize:12,color:MUT}}>{mcs.length}개</span></h2>
+          <button onClick={regenAllFromMc} disabled={!!busy} style={btn("#fff",PUR,{border:"1px solid "+PURW,fontSize:13,padding:"8px 14px"})}>{busy==="regenAll"?<Loading label="재생성…"/>:"이 오개념으로 문항 다시 생성"}</button>
+        </div>
+        {mcs.map((m,i)=> mcEdit===i?(
+          <div key={i} style={{background:PURW,borderRadius:10,padding:12,marginBottom:8}}>
+            <input value={m.name} onChange={e=>setMcs(mcs.map((x,j)=>j===i?{...x,name:e.target.value}:x))} style={{...inp,marginBottom:6,fontWeight:700}}/>
+            <textarea value={m.description} onChange={e=>setMcs(mcs.map((x,j)=>j===i?{...x,description:e.target.value}:x))} style={{...inp,height:46,resize:"vertical"}}/>
+            <button onClick={()=>setMcEdit(-1)} style={btn(GR,"#fff",{marginTop:8,fontSize:13,padding:"7px 14px"})}>완료</button>
+          </div>
+        ):(
+          <div key={i} style={{display:"flex",gap:10,alignItems:"flex-start",background:PURW,borderRadius:10,padding:"10px 12px",marginBottom:8}}>
+            <span style={{fontFamily:"monospace",fontWeight:700,color:"#fff",background:PUR,borderRadius:6,padding:"3px 7px",fontSize:11}}>{m.id}</span>
+            <div style={{flex:1}}><div style={{fontWeight:700,fontSize:14}}>{m.name}</div><div style={{fontSize:13,color:MUT,marginTop:2}}>{m.description}</div></div>
+            <button onClick={()=>setMcEdit(i)} style={{...btn("#fff",MUT,{fontSize:12,padding:"5px 9px",border:"1px solid "+LINE})}}>수정</button>
+            <button onClick={()=>{if(confirm("삭제?"))setMcs(mcs.filter((_,j)=>j!==i));}} style={{...btn("#fff",DANG,{fontSize:12,padding:"5px 9px",border:"1px solid #FCA5A5"})}}>삭제</button>
+          </div>
+        ))}
+      </div>}
+
+      {qs.length>0&&<div>
+        <h2 style={{fontSize:16,fontWeight:800,margin:"6px 2px 12px"}}>이단계 진단 문항 <span style={{fontWeight:400,fontSize:12,color:MUT}}>{qs.length}개</span></h2>
+        {qs.map((q,i)=> qEdit===i?(
+          <QEditor key={i} q={q} onSave={nq=>{setQs(qs.map((x,j)=>j===i?nq:x));setQEdit(-1);}} onCancel={()=>setQEdit(-1)}/>
+        ):(
+          <QCard key={i} q={q} i={i} mcNm={mcNm} busy={busy} onEdit={()=>setQEdit(i)} onDel={()=>{if(confirm((i+1)+"번 삭제?"))setQs(qs.filter((_,j)=>j!==i));}} onRegen={()=>regenOne(i)}/>
+        ))}
+        <div style={{...card,marginTop:6}}>
+          <label style={lab}>평가 제목 *</label>
+          <input value={title} onChange={e=>setTitle(e.target.value)} placeholder="예: 마찰전기와 정전기 유도 오개념 진단" style={{...inp,marginBottom:12}}/>
+          <div style={{display:"flex",justifyContent:"flex-end"}}><button onClick={save} disabled={!!busy} style={btn(GB,"#fff",{padding:"13px 28px",fontSize:15})}>{busy==="save"?<Loading label="저장 중…"/>:"💾 저장 → 학생에게 공유"}</button></div>
+        </div>
+      </div>}
+    </div>
+  );
+}
+function QCard({q,i,mcNm,busy,onEdit,onDel,onRegen}){
+  const c1=idxByText(q.options,q.answer);
+  const otag=(label,correct)=><span style={{fontFamily:"monospace",fontSize:10.5,fontWeight:700,padding:"2px 7px",borderRadius:12,marginLeft:6,background:correct?"#E5F2EB":PURW,color:correct?OKC:PUR}}>{label}</span>;
+  return <div style={{...card,padding:"16px 18px"}}>
+    <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"flex-start",flexWrap:"wrap",marginBottom:8}}>
+      <div style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontFamily:"monospace",fontWeight:700,color:"#fff",background:GR,width:26,height:26,borderRadius:7,display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:13}}>{i+1}</span><Badge bg={PURW} col={PUR}>이단계형</Badge>{q.concept&&<Badge bg={SAGE} col={GRD}>{q.concept}</Badge>}</div>
+      <div style={{display:"flex",gap:6}}>
+        <button onClick={onEdit} style={btn("#fff",MUT,{fontSize:12,padding:"6px 10px",border:"1px solid "+LINE})}>수정</button>
+        <button onClick={onDel} style={btn("#fff",DANG,{fontSize:12,padding:"6px 10px",border:"1px solid #FCA5A5"})}>삭제</button>
+        <button onClick={onRegen} disabled={!!busy} style={btn("#fff",PUR,{fontSize:12,padding:"6px 10px",border:"1px solid "+PURW})}>{busy==="q"+i?"…":"재출제"}</button>
+      </div>
+    </div>
+    <div style={{fontFamily:"monospace",fontSize:11,fontWeight:700,color:GR,letterSpacing:.5,marginBottom:3}}>1단계 · 현상</div>
+    <div style={{fontWeight:500,marginBottom:4,whiteSpace:"pre-wrap"}}>{q.question}</div>
+    <div>{q.options.map((o,oi)=><div key={oi} style={{fontSize:14,color:MUT,padding:"2px 0"}}>{o}{oi===c1&&otag("정답",true)}</div>)}</div>
+    <div style={{fontFamily:"monospace",fontSize:11,fontWeight:700,color:PUR,letterSpacing:.5,margin:"12px 0 3px"}}>2단계 · 이유</div>
+    <div style={{fontWeight:500,marginBottom:4,whiteSpace:"pre-wrap"}}>{q.reasonPrompt}</div>
+    <div>{(q.reasons||[]).map((o,oi)=>{const m=q.reasonMap&&q.reasonMap[oi];return <div key={oi} style={{fontSize:14,color:MUT,padding:"2px 0"}}>{o}{m==="correct"?otag("정답",true):(m?otag(mcNm(m),false):null)}</div>;})}</div>
+    <div style={{marginTop:12,padding:"10px 12px",borderRadius:9,background:SAGE,borderLeft:"3px solid "+GR,fontSize:13,color:GRD}}><b>정답</b> · 1단계 {q.answer||"—"} / 2단계 {q.reasonAnswer||"—"}{q.explanation&&<div style={{color:MUT,marginTop:4}}>{q.explanation}</div>}</div>
+  </div>;
+}
+function QEditor({q,onSave,onCancel}){
+  const [d,setD]=useState({...q,options:(q.options||[]).join("\n"),reasons:(q.reasons||[]).join("\n"),reasonMap:(q.reasonMap||[]).join("\n")});
+  const s=(k,v)=>setD(p=>({...p,[k]:v}));
+  const done=()=>onSave({...q,question:d.question,answer:d.answer,reasonPrompt:d.reasonPrompt,reasonAnswer:d.reasonAnswer,explanation:d.explanation,
+    options:(d.options||"").split("\n").map(x=>x.trim()).filter(Boolean),reasons:(d.reasons||"").split("\n").map(x=>x.trim()).filter(Boolean),reasonMap:(d.reasonMap||"").split("\n").map(x=>x.trim()).filter(Boolean)});
+  const F=(l,k,h,hint)=><div style={{marginBottom:10}}><label style={lab}>{l}{hint&&<span style={{fontWeight:400,color:MUT,fontSize:11}}> {hint}</span>}</label>{h?<textarea value={d[k]} onChange={e=>s(k,e.target.value)} style={{...inp,height:h,resize:"vertical"}}/>:<input value={d[k]} onChange={e=>s(k,e.target.value)} style={inp}/>}</div>;
+  return <div style={{...card,border:"2px solid "+PUR}}>
+    {F("1단계 발문(현상)","question",50)}
+    {F("1단계 선택지","options",70,"한 줄에 하나씩")}
+    {F("1단계 정답","answer",0,"정답 선택지 내용")}
+    {F("2단계 발문(이유)","reasonPrompt",44)}
+    {F("2단계 선택지","reasons",70,"한 줄에 하나씩")}
+    {F("2단계 진단표","reasonMap",70,"한 줄에 하나씩 · correct 또는 오개념 id(M1 등)")}
+    {F("2단계 정답","reasonAnswer",0,"정답 이유 내용")}
+    {F("해설","explanation",44)}
+    <div style={{display:"flex",gap:8}}><button onClick={done} style={btn(GR,"#fff",{fontSize:13,padding:"8px 16px"})}>저장</button><button onClick={onCancel} style={btn("#fff",MUT,{fontSize:13,padding:"8px 16px",border:"1px solid "+LINE})}>취소</button></div>
+  </div>;
+}
+
+/* ── 목록·공유 탭 ── */
+function LibraryTab({quizzes,uid,onChange}){
+  const [qr,setQr]=useState(null);
+  const del=async id=>{if(!confirm("삭제하시겠습니까? (관련 제출도 삭제)"))return;await DB.delQuiz(uid,id);onChange();};
+  const base=location.href.split(/[#?]/)[0];
+  if(!quizzes.length)return <Empty icon="📚" text="‘출제’ 탭에서 진단을 만들어 저장하세요."/>;
+  return(
+    <div>
+      <h3 style={{fontSize:14,fontWeight:800,marginBottom:10}}>저장된 진단 ({quizzes.length}개) — 코드/QR로 학생에게 공유</h3>
+      {quizzes.map(a=>{const url=`${base}?id=${a.id}`;return(
+        <div key={a.id} style={{...card,padding:"16px 18px",marginBottom:12}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}>
+            <div style={{flex:1,minWidth:180}}>
+              <div style={{fontWeight:800,fontSize:15,color:INK,marginBottom:3}}>{a.title}</div>
+              <div style={{fontSize:12,color:MUT}}>{a.topic&&`🧪 ${a.topic} · `}{a.grade&&`${a.grade} · `}문항 {a.questions?.length||0}개</div>
+            </div>
+            <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+              <span style={{fontSize:18,fontWeight:900,color:GR,letterSpacing:2,background:SAGE,padding:"6px 12px",borderRadius:8}}>#{shortCode(a.id)}</span>
+              <button onClick={()=>navigator.clipboard.writeText(url).then(()=>alert("학생용 링크 복사됨:\n"+url))} style={btn("#fff",GR,{border:"1px solid "+SAGEL,fontSize:12,padding:"8px 12px"})}>링크 복사</button>
+              <button onClick={()=>setQr(qr===a.id?null:a.id)} style={btn("#fff",GR,{border:"1px solid "+SAGEL,fontSize:12,padding:"8px 12px"})}>{qr===a.id?"QR 닫기":"QR 보기"}</button>
+              <button onClick={()=>del(a.id)} style={btn("#FEF2F2","#DC2626",{border:"1px solid #FCA5A5",fontSize:12,padding:"8px 12px"})}>삭제</button>
+            </div>
+          </div>
+          {qr===a.id&&<div style={{marginTop:14,display:"flex",flexDirection:"column",alignItems:"center",gap:8,padding:14,background:"#fff",border:"1px solid "+LINE,borderRadius:10}}><QRImage url={url}/><div style={{fontSize:12,color:MUT}}>스캔하면 바로 학생 풀이 화면 · 입장 코드 #{shortCode(a.id)}</div></div>}
+        </div>
+      );})}
+    </div>
+  );
+}
+
+/* ── 오개념 결과 탭 ── */
+function ResultsTab({quizzes,uid}){
+  const [sel,setSel]=useState(""),[key,setKey]=useState(null),[rows,setRows]=useState([]),[loading,setLoading]=useState(false);
+  const load=async()=>{if(!sel)return;setLoading(true);const k=await DB.getKey(uid,sel);const subs=await DB.getResults(uid,sel);setKey(k);
+    const rr=(subs||[]).map(s=>{const g=gradeSub(k||{questions:[]},s);const gradable=g.marks.filter(m=>m==="O"||m==="X"||m==="N").length,correct=g.marks.filter(m=>m==="O").length;
+      return {studentId:s.studentId,time:fmtTime(s.submittedAt),marks:g.marks,mcHeld:g.mcHeld,gradable,correct,rate:gradable?Math.round(correct/gradable*100):0};}).sort((a,b)=>(a.studentId||"").localeCompare(b.studentId||""));
+    setRows(rr);setLoading(false);};
+  useEffect(()=>{if(!sel){setKey(null);setRows([]);return;}load();const iv=setInterval(load,6000);return()=>clearInterval(iv);},[sel]);
+  const asm=quizzes.find(a=>a.id===sel);
+
+  const mcStats=key?(key.misconceptions||[]).map(mc=>{const withIt=rows.filter(r=>r.mcHeld[mc.id]).length;
+    return {id:mc.id,name:mc.name,description:mc.description,count:withIt,pct:rows.length?Math.round(withIt/rows.length*100):0,qNums:relatedQs(key,mc.id)};}).sort((a,b)=>b.count-a.count):[];
+  const qCount=key?(key.questions||[]).length:0;
+  const perQ=key?(key.questions||[]).map((q,i)=>{const ms=rows.map(r=>r.marks[i]);const g=ms.filter(m=>m==="O"||m==="X"||m==="N").length,o=ms.filter(m=>m==="O").length;return {rate:g?Math.round(o/g*100):null};}):[];
+
+  const download=()=>{if(!key||!rows.length)return;
+    const h1=["학번","제출시각",...Array.from({length:qCount},(_,i)=>`${i+1}번`),"정답수","보유 오개념"];
+    const a1=[h1];rows.forEach(r=>a1.push([r.studentId,r.time,...r.marks.map(m=>({O:"O",X:"X",N:"미응답"}[m]||"·")),`${r.correct}/${r.gradable}`,Object.keys(r.mcHeld).map(id=>mcNameFrom(key,id)).join(", ")]));
+    const a2=[["ID","오개념","설명","보유 학생 수","비율(%)","관련 문항"]];mcStats.forEach(m=>a2.push([m.id,m.name,m.description,m.count,m.pct,m.qNums.join(", ")]));
+    const a3=[["문항","정답률(%)"]];(key.questions||[]).forEach((q,i)=>a3.push([`${i+1}번`,perQ[i].rate!=null?perQ[i].rate:"—"]));
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(a1),"학생별 결과");
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(a2),"오개념 현황");
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(a3),"문항별 정답률");
+    XLSX.writeFile(wb,`오개념진단_${(asm&&asm.title)||""}.xlsx`);
+  };
+
+  return(
+    <div>
+      <div style={{display:"flex",gap:10,marginBottom:16,alignItems:"center",flexWrap:"wrap"}}>
+        <select value={sel} onChange={e=>setSel(e.target.value)} style={{...inp,flex:1,minWidth:200}}><option value="">📋 진단을 선택하세요</option>{quizzes.map(a=><option key={a.id} value={a.id}>{a.title}</option>)}</select>
+        {sel&&<><span style={{fontSize:11,color:"#94A3B8"}}>● 6초마다 갱신</span><button onClick={load} style={btn("#fff",GR,{fontSize:13,padding:"9px 14px",border:"1px solid "+SAGEL})}>새로고침</button><button onClick={download} disabled={!rows.length} style={btn("#059669","#fff",{fontSize:13,padding:"9px 16px"})}>⬇ 엑셀</button></>}
+      </div>
+      {sel&&loading&&!rows.length&&<Empty icon="⏳" text="불러오는 중…"/>}
+      {sel&&!loading&&!rows.length&&<Empty icon="⏳" text="아직 제출한 학생이 없습니다."/>}
+      {sel&&rows.length>0&&<>
+        <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:16}}>
+          <Stat n={rows.length} l="제출 인원"/>
+          <Stat n={key?(key.misconceptions||[]).length:0} l="진단 오개념"/>
+          <Stat n={mcStats.length&&mcStats[0].count?mcStats[0].name:"—"} l="가장 흔한 오개념" small/>
+        </div>
+
+        <h3 style={{fontSize:15,fontWeight:800,margin:"6px 2px 10px"}}>🧠 오개념 현황 <span style={{fontWeight:400,fontSize:12,color:MUT}}>보유 학생 많은 순</span></h3>
+        <div style={{...card,padding:0,overflow:"hidden"}}><div style={{overflowX:"auto"}}><table style={{borderCollapse:"collapse",width:"100%",fontSize:13,minWidth:560}}>
+          <thead><tr>{["ID","오개념","보유 학생","비율","관련 문항"].map((h,i)=><th key={i} style={{background:"#F5F5F0",padding:"9px 11px",textAlign:i<2?"left":"center",fontWeight:700,color:MUT,borderBottom:"1px solid "+LINE}}>{h}</th>)}</tr></thead>
+          <tbody>{mcStats.map(m=><tr key={m.id} style={{borderBottom:"1px solid "+LINE}}>
+            <td style={{padding:"9px 11px",fontFamily:"monospace",fontWeight:700,color:PUR}}>{m.id}</td>
+            <td style={{padding:"9px 11px",fontWeight:600}}>{m.name}<div style={{fontWeight:400,color:"#94A3B8",fontSize:12}}>{m.description}</div></td>
+            <td style={{padding:"9px 11px",textAlign:"center",fontWeight:700}}>{m.count}명</td>
+            <td style={{padding:"9px 11px",textAlign:"center"}}>{m.pct}%<div style={{width:110,height:7,background:LINE,borderRadius:5,margin:"4px auto 0",overflow:"hidden"}}><div style={{width:m.pct+"%",height:"100%",background:PUR}}/></div></td>
+            <td style={{padding:"9px 11px",textAlign:"center",color:MUT}}>{m.qNums.join(", ")||"—"}</td>
+          </tr>)}</tbody>
+        </table></div></div>
+
+        <h3 style={{fontSize:15,fontWeight:800,margin:"20px 2px 10px"}}>👩‍🎓 학생별 응답</h3>
+        <div style={{...card,padding:0,overflow:"hidden"}}><div style={{overflowX:"auto"}}><table style={{borderCollapse:"collapse",width:"100%",fontSize:13,minWidth:560}}>
+          <thead><tr>
+            <th style={{background:"#F5F5F0",padding:"9px 11px",textAlign:"left",fontWeight:700,color:MUT,borderBottom:"1px solid "+LINE}}>학번</th>
+            <th style={{background:"#F5F5F0",padding:"9px 11px",fontWeight:700,color:MUT,borderBottom:"1px solid "+LINE}}>시각</th>
+            {(key.questions||[]).map((q,i)=><th key={i} style={{background:"#F5F5F0",padding:"9px 8px",fontWeight:700,color:MUT,borderBottom:"1px solid "+LINE}}>{i+1}<div style={{fontSize:10,fontWeight:400,color:"#94A3B8"}}>{perQ[i].rate!=null?perQ[i].rate+"%":""}</div></th>)}
+            <th style={{background:"#F5F5F0",padding:"9px 11px",fontWeight:700,color:MUT,borderBottom:"1px solid "+LINE}}>정답</th>
+            <th style={{background:"#F5F5F0",padding:"9px 11px",fontWeight:700,color:MUT,borderBottom:"1px solid "+LINE}}>보유 오개념</th>
+          </tr></thead>
+          <tbody>{rows.map(r=><tr key={r.studentId} style={{borderBottom:"1px solid "+LINE}}>
+            <td style={{padding:"9px 11px",fontFamily:"monospace",fontWeight:700}}>{r.studentId}</td>
+            <td style={{padding:"9px 11px",textAlign:"center",color:MUT,fontSize:12}}>{r.time}</td>
+            {r.marks.map((m,i)=><td key={i} style={{padding:"9px 8px",textAlign:"center",fontWeight:800,color:m==="O"?OKC:(m==="X"?DANG:"#B8C0BA")}}>{m==="O"?"O":(m==="X"?"X":"·")}</td>)}
+            <td style={{padding:"9px 11px",textAlign:"center",fontWeight:700}}>{r.correct}/{r.gradable}</td>
+            <td style={{padding:"9px 11px",fontSize:12,color:INK}}>{Object.keys(r.mcHeld).length?Object.keys(r.mcHeld).map(id=>mcNameFrom(key,id)).join(", "):"—"}</td>
+          </tr>)}</tbody>
+        </table></div></div>
+        <div style={{fontSize:12,color:MUT,marginTop:10}}>O 올바른 이해(1·2단계 모두 정답) · X 오답(2단계 이유에 오개념 반영) · · 미응답. 오개념은 2단계 '이유' 선택으로 진단됩니다.</div>
+      </>}
+    </div>
+  );
+}
+function Stat({n,l,small}){return <div style={{flex:1,minWidth:120,background:"#fff",border:"1px solid "+LINE,borderRadius:12,padding:"14px 16px"}}><div style={{fontFamily:"monospace",fontSize:small?15:24,fontWeight:800,color:GR,lineHeight:1.2,paddingTop:small?4:0}}>{n}</div><div style={{fontSize:12.5,color:MUT,marginTop:5}}>{l}</div></div>;}
+
+/* ══════════ 학생 페이지 ══════════ */
+function StudentPage({quiz}){
+  const ownerUid=quiz._ownerUid;
+  const [sid,setSid]=useState(""),[confirmed,setConfirmed]=useState("");
+  const [sel,setSel]=useState({}),[busy,setBusy]=useState(false),[err,setErr]=useState(""),[done,setDone]=useState(false);
+
+  const start=async()=>{const s=(sid||"").replace(/\s+/g,"");if(!s)return;
+    try{if(firebase.auth&&!firebase.auth().currentUser)await firebase.auth().signInAnonymously();}catch(e){console.error("anon",e);}
+    setConfirmed(s);
+    const rs=await DB.getResults(ownerUid,quiz.id);const ex=rs.find(r=>r.studentId===s);
+    if(ex){setDone(!!ex.submittedAt);const m={};(ex.answers||[]).forEach(a=>{m[a.qIndex]={t1:a.selectedIndex,t2:a.reasonIndex};});setSel(m);}
+  };
+  const pick=(qi,tier,oi)=>setSel(p=>({...p,[qi]:{...(p[qi]||{}),[tier]:oi}}));
+  const submit=async()=>{
+    setErr("");setBusy(true);
+    const answers=(quiz.questions||[]).map((it,i)=>{const s=sel[i]||{};return {qIndex:i,type:it.type,selectedIndex:(s.t1!=null?s.t1:-1),reasonIndex:(s.t2!=null?s.t2:-1)};});
+    try{await DB.setResult(ownerUid,quiz.id,{studentId:confirmed,answers,submittedAt:now()});setDone(true);window.scrollTo(0,0);}
+    catch(e){setErr("제출 실패: "+e.message);}
+    setBusy(false);
+  };
+
+  if(!confirmed)return(
+    <Center><div style={{background:"#fff",borderRadius:20,padding:32,width:340,boxShadow:"0 16px 48px rgba(16,52,34,.15)",textAlign:"center"}}>
+      <div style={{fontSize:38,marginBottom:8}}>🧠</div>
+      <div style={{fontWeight:800,fontSize:15,color:INK,marginBottom:2}}>{quiz.title}</div>
+      {quiz.topic&&<div style={{fontSize:12,color:MUT,marginBottom:18}}>🧪 {quiz.topic}</div>}
+      <label style={{display:"block",textAlign:"left",...lab}}>학번 (학년-반-번호)</label>
+      <input value={sid} onChange={e=>setSid(e.target.value)} onKeyDown={e=>e.key==="Enter"&&start()} placeholder="예: 2-3-15" autoFocus style={{...inp,fontSize:17,textAlign:"center",fontWeight:700,padding:12}}/>
+      <button onClick={start} style={btn(GR,"#fff",{width:"100%",marginTop:10,padding:12})}>시작하기</button>
+    </div></Center>
+  );
+
+  if(done)return(
+    <Center><div style={{background:"#fff",borderRadius:20,padding:38,width:360,boxShadow:"0 16px 48px rgba(16,52,34,.15)",textAlign:"center"}}>
+      <div style={{width:56,height:56,borderRadius:"50%",background:"#E5F2EB",color:OKC,display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:28,marginBottom:12}}>✓</div>
+      <h2 style={{fontSize:20,fontWeight:800,marginBottom:6}}>제출 완료</h2>
+      <p style={{color:MUT,fontSize:13,marginBottom:16}}>학번 <b>{confirmed}</b> · {(quiz.questions||[]).length}문항 제출됨</p>
+      <button onClick={()=>setDone(false)} style={btn("#fff",GR,{border:"1px solid "+SAGEL,width:"100%",padding:11})}>다시 풀기 / 수정 제출</button>
+    </div></Center>
+  );
+
+  return(
+    <div style={{minHeight:"100vh",background:PAPER}}>
+      <header style={{background:GR,color:"#fff",padding:"12px 16px"}}>
+        <div style={{maxWidth:720,margin:"0 auto",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div><div style={{fontWeight:900,fontSize:15}}>{quiz.title}</div><div style={{fontSize:11,opacity:.8}}>{quiz.topic}</div></div>
+          <div style={{fontSize:12,opacity:.85}}>👤 {confirmed}</div>
+        </div>
+      </header>
+      <div style={{maxWidth:720,margin:"0 auto",padding:"18px 16px 60px"}}>
+        {(quiz.questions||[]).map((it,i)=>(
+          <div key={i} style={card}>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}><span style={{fontFamily:"monospace",fontWeight:700,color:"#fff",background:GR,width:26,height:26,borderRadius:7,display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:13}}>{i+1}</span><Badge bg={PURW} col={PUR}>이단계형</Badge></div>
+            <div style={{fontFamily:"monospace",fontSize:11,fontWeight:700,color:GR,marginBottom:3}}>1단계 · 어떻게 될까요?</div>
+            <div style={{fontWeight:500,marginBottom:2,whiteSpace:"pre-wrap"}}>{it.question}</div>
+            {(it.options||[]).map((o,oi)=>{const on=(sel[i]||{}).t1===oi;return <div key={oi} onClick={()=>pick(i,"t1",oi)} style={{padding:"10px 12px",border:"1.5px solid "+(on?GR:LINE),background:on?SAGE:"#fff",borderRadius:10,marginTop:8,cursor:"pointer",fontSize:14.5}}>{o}</div>;})}
+            <div style={{fontFamily:"monospace",fontSize:11,fontWeight:700,color:PUR,margin:"14px 0 3px"}}>2단계 · 그렇게 생각한 이유는?</div>
+            <div style={{fontWeight:500,marginBottom:2}}>{it.reasonPrompt}</div>
+            {(it.reasons||[]).map((o,oi)=>{const on=(sel[i]||{}).t2===oi;return <div key={oi} onClick={()=>pick(i,"t2",oi)} style={{padding:"10px 12px",border:"1.5px solid "+(on?PUR:LINE),background:on?PURW:"#fff",borderRadius:10,marginTop:8,cursor:"pointer",fontSize:14.5}}>{o}</div>;})}
+          </div>
+        ))}
+        <Err msg={err}/>
+        <button onClick={submit} disabled={busy} style={btn("#059669","#fff",{width:"100%",padding:14,fontSize:15,marginTop:4})}>{busy?<Loading label="제출 중…"/>:"제출하기"}</button>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
 </script>
+</body>
 </html>
