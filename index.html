@@ -381,8 +381,22 @@ function QEditor({q,onSave,onCancel}){
 
 /* ── 목록·공유 탭 ── */
 function LibraryTab({quizzes,uid,onChange}){
-  const [qr,setQr]=useState(null);
+  const [qr,setQr]=useState(null),[busy,setBusy]=useState("");
   const del=async id=>{if(!confirm("삭제하시겠습니까? (관련 제출도 삭제)"))return;await DB.delQuiz(uid,id);onChange();};
+  const copy=async a=>{
+    const cls=prompt("복사본을 어느 반에 쓸까요? (예: 3)\n비워두면 그대로 복사됩니다.", a.cls||"");
+    if(cls===null)return;
+    setBusy(a.id);
+    try{
+      const key=await DB.getKey(uid,a.id)||{misconceptions:[],questions:[]};
+      const dup=JSON.parse(JSON.stringify(a));delete dup._ownerUid;
+      dup.id=Date.now().toString();dup.createdAt=now();dup.cls=cls.trim()||a.cls||"";
+      await DB.saveQuiz(uid,dup,key);
+      onChange();
+      alert("복사했습니다.\n새 입장 코드: #"+shortCode(dup.id)+(dup.cls?"  ("+dup.cls+"반)":""));
+    }catch(e){alert("복사 실패: "+e.message);}
+    setBusy("");
+  };
   const base=location.href.split(/[#?]/)[0];
   if(!quizzes.length)return <Empty icon="📚" text="‘출제’ 탭에서 진단을 만들어 저장하세요."/>;
   return(
@@ -393,12 +407,13 @@ function LibraryTab({quizzes,uid,onChange}){
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}>
             <div style={{flex:1,minWidth:180}}>
               <div style={{fontWeight:800,fontSize:15,color:INK,marginBottom:3}}>{a.title}</div>
-              <div style={{fontSize:12,color:MUT}}>{a.topic&&`🧪 ${a.topic} · `}{a.grade&&`${a.grade} · `}문항 {a.questions?.length||0}개</div>
+              <div style={{fontSize:12,color:MUT}}>{a.topic&&`🧪 ${a.topic} · `}{a.grade&&`${a.grade} `}{a.cls&&`${a.cls}반 · `}문항 {a.questions?.length||0}개</div>
             </div>
             <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
               <span style={{fontSize:18,fontWeight:900,color:GR,letterSpacing:2,background:SAGE,padding:"6px 12px",borderRadius:8}}>#{shortCode(a.id)}</span>
               <button onClick={()=>navigator.clipboard.writeText(url).then(()=>alert("학생용 링크 복사됨:\n"+url))} style={btn("#fff",GR,{border:"1px solid "+SAGEL,fontSize:12,padding:"8px 12px"})}>링크 복사</button>
               <button onClick={()=>setQr(qr===a.id?null:a.id)} style={btn("#fff",GR,{border:"1px solid "+SAGEL,fontSize:12,padding:"8px 12px"})}>{qr===a.id?"QR 닫기":"QR 보기"}</button>
+              <button onClick={()=>copy(a)} disabled={busy===a.id} style={btn(SAGE,GR,{border:"1px solid "+SAGEL,fontSize:12,padding:"8px 12px"})}>{busy===a.id?"복사 중…":"📄 복사"}</button>
               <button onClick={()=>del(a.id)} style={btn("#FEF2F2","#DC2626",{border:"1px solid #FCA5A5",fontSize:12,padding:"8px 12px"})}>삭제</button>
             </div>
           </div>
